@@ -1,3 +1,6 @@
+# MvNormalCDF
+# Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>, Andrew Gough
+
 #=
 This function uses an algorithm given in the paper
 "Numerical Computation of Multivariate Normal Probabilities", in
