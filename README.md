@@ -20,6 +20,7 @@ Re-coded in Julia from the MATLAB function qsimvnv(m,r,a,b)
 Alan Genz is the author the MATLAB qsimvnv() function.
 Alan Genz software website: http://archive.is/jdeRh
 Source code to MATLAB qsimvnv() function: http://archive.is/h5L37
+```
 % QSIMVNV(m,r,a,b) and _chlrdr(r,a,b)
 %
 % Copyright (C) 2013, Alan Genz,  All rights reserved.
@@ -47,7 +48,7 @@ Source code to MATLAB qsimvnv() function: http://archive.is/h5L37
 % TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF USE
 % OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 %
-
+```
 
 ```
     Distributions.cdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
@@ -76,6 +77,7 @@ Probability p is output with error estimate e.
 Computes the Multivariate Normal probability integral using a quasi-Monte-Carlo
 algorithm with m points for positive definite covariance matrix Σ, mean [0,...], with lower
 integration limit vector a and upper integration limit vector b.
+
 ```math
 \Phi_k(\mathbf{a},\mathbf{b},\mathbf{\Sigma} ) = \frac{1}{\sqrt{\left | \mathbf{\Sigma}  \right |{(2\pi )^k}}}\int_{a_1}^{b_1}\int_{a_2}^{b_2}\begin{align*}
  &...\end{align*} \int_{a_k}^{b_k}e^{^{-\frac{1}{2}}\mathbf{x}^t{\mathbf{\Sigma }}^{-1}\boldsymbol{\mathbf{x}}}dx_k...dx_1
@@ -102,14 +104,10 @@ m = 5000
 #(0.605219554009911, 0.0015718064928452481)
 ```
 
-!!! note
-
-    Results will vary slightly from run-to-run due to the quasi-Monte-Carlo
+Results will vary slightly from run-to-run due to the quasi-Monte-Carlo
     algorithm.
 
-!!! note
-
-    There is no covariance matrix Σ positive definite check.
+There is no covariance matrix Σ positive definite check.
 
 ```
      mvnormcdf(Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
