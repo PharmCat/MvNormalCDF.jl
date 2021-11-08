@@ -4,7 +4,7 @@
 module MvNormalCDF
     using Distributions, Primes, Random, LinearAlgebra
 
-    export MvNormal, cdf, mvnormcdf
+    export MvNormal, mvnormcdf
 
     const sqrt2π = sqrt(2π)
 

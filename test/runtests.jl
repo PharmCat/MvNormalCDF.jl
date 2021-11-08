@@ -214,25 +214,25 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
     # Σ dimension 1 throws error
     r = Array{Float64}(undef,(1,1))
     r[1,1] = 5
-    @test_throws ErrorException MvNormalCDF.cdf(MvNormal(r),a,b)
+    @test_throws ErrorException MvNormalCDF.mvnormcdf(MvNormal(r),a,b)
 
     # a < b throws error
     r = td[3,1]
     a = [-Inf, 3, 0]
     b = [0, 0, 1]
-    @test_throws ArgumentError MvNormalCDF.cdf(MvNormal(r),a,b)
+    @test_throws ArgumentError MvNormalCDF.mvnormcdf(MvNormal(r),a,b)
 
     # non-square Σ throws error
     r = [1 2; 3 4; 5 6]
     a = [-Inf, -Inf, -Inf]
     b = [0, 0, 0]
-    @test_throws DimensionMismatch MvNormalCDF.cdf(MvNormal(r),a,b)
+    @test_throws DimensionMismatch MvNormalCDF.mvnormcdf(MvNormal(r),a,b)
 
 	# mismatched dimensions throws errors
 	r = [1 2; 3 4; 5 6]
     a = [-Inf, -Inf, -Inf]
 	b = [0, 0]
 
-	@test_throws DimensionMismatch MvNormalCDF.cdf(MvNormal(r),a,b)
+	@test_throws DimensionMismatch MvNormalCDF.mvnormcdf(MvNormal(r),a,b)
 
  end

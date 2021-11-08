@@ -46,7 +46,7 @@ Source code to MATLAB qsimvnv() function: http://archive.is/h5L37
 =#
 
 """
-    Distributions.cdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
+    mvnormcdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
 
 Computes the Multivariate Normal probability integral using a quasi-Monte-Carlo
 algorithm with m points for multivariate normal distributions ([MvNormal](https://juliastats.org/Distributions.jl/stable/multivariate/#Distributions.MvNormal))
@@ -63,7 +63,7 @@ Probability p is output with error estimate e.
 - Genz, A. (1992). Numerical computation of multivariate normal probabilities. Journal of Computational and Graphical Statistics, 1, 141--150
 - Genz, A. (1993). Comparison of methods for the computation of multivariate normal probabilities. Computing Science and Statistics, 25, 400--405
 """
-function Distributions.cdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
+function mvnormcdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
     mvnormcdf(dist.Σ, a .- dist.μ, b .- dist.μ, m = m, rng = rng)
 end
 """
