@@ -1,5 +1,6 @@
 # MvNormalCDF
 
+Numerical Computation of Multivariate Normal Probabilities
 
 ![Tier 1](https://github.com/PharmCat/MvNormalCDF.jl/workflows/Tier%201/badge.svg)
 
@@ -126,3 +127,9 @@ b = [2; 2]
 (p,e) = mvnormcdf(Σ, a-μ, b-μ)
 #(0.4306346895870772, 0.00015776288569406053)
 ```
+
+P.S.
+
+Idea was taken from this [PR](https://github.com/JuliaStats/StatsFuns.jl/pull/114) to StatsFuns.jl
+See discourse discussion [here](https://discourse.julialang.org/t/mvn-cdf-have-it-coded-need-help-getting-integrating-into-distributions-jl/38631).
+Thanks to @blackeneth

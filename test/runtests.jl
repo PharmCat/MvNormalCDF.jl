@@ -1,5 +1,5 @@
 # MvNormalCDF
-# Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>
+# Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>, Andrew Gough
 
 using Test, MvNormalCDF, Distributions
 
