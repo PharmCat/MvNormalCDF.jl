@@ -45,6 +45,9 @@ Source code to MATLAB qsimvnv() function: http://archive.is/h5L37
 %
 =#
 
+copy_oftype(A::AbstractArray{T}, ::Type{T}) where {T} = copy(A)
+copy_oftype(A::AbstractArray{T,N}, ::Type{S}) where {T,N,S} = convert(AbstractArray{S,N}, A)
+
 """
     mvnormcdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
 
@@ -64,8 +67,9 @@ Probability p is output with error estimate e.
 - Genz, A. (1993). Comparison of methods for the computation of multivariate normal probabilities. Computing Science and Statistics, 25, 400--405
 """
 function mvnormcdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
-    mvnormcdf(dist.Σ, a .- dist.μ, b .- dist.μ, m = m, rng = rng)
+    mvnormcdf(dist.μ, dist.Σ, a, b, m = m, rng = rng)
 end
+
 """
     mvnormcdf(μ::AbstractVector{<:Real}, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
 
@@ -98,9 +102,10 @@ m = 5000
 Results will vary slightly from run-to-run due to the quasi-Monte-Carlo
 algorithm.
 """
-function mvnormcdf(μ::AbstractVector{<:Real}, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
-    mvnormcdf(Σ, a .- μ, b .- μ, m = m, rng = rng)
+function mvnormcdf(Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
+    mvnormcdf(Zeros(size(Σ, 1)), Σ, a, b, m = m, rng = rng)
 end
+
 """
      mvnormcdf(Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
 
@@ -117,95 +122,92 @@ b = [2; 2]
 #(0.4306346895870772, 0.00015776288569406053)
 ```
 """
-function mvnormcdf(Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
-    	# check for proper dimensions
-    	n=size(Σ,1)
-    	nc=size(Σ,2) 	# assume square Cov matrix nxn
-    	# check dimension > 1
-    	n >= 2   || throw(ErrorException("dimension of Σ must be 2 or greater. Σ dimension: $(size(Σ))"))
-    	n == nc  || throw(DimensionMismatch("Σ matrix must be square. Σ dimension: $(size(Σ))"))
-    	# check dimensions of lower vector, upper vector, and cov matrix match
-    	(n == size(a,1) == size(b,1)) || throw(DimensionMismatch("iconsistent argument dimensions. Sizes: Σ $(size(Σ))  a $(size(a))  b $(size(b))"))
-    	# check that a and b are column vectors; if row vectors, fix it
-    	if size(a,1) < size(a,2)
-    		a = transpose(a)
+function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
+    # check for proper dimensions
+    n =size(Σ, 1)
+    nc=size(Σ, 2) 	# assume square Cov matrix nxn
+    # check dimension > 1
+    n >= 2   || throw(ErrorException("dimension of Σ must be 2 or greater. Σ dimension: $(size(Σ))"))
+    n == nc  || throw(DimensionMismatch("Σ matrix must be square. Σ dimension: $(size(Σ))"))
+    # check dimensions of lower vector, upper vector, and cov matrix match
+    (n == length(a) == length(b)) || throw(DimensionMismatch("iconsistent argument dimensions. Sizes: Σ $(size(Σ))  a $(size(a))  b $(size(b))"))
+
+    # check that lower integration limit a < upper integration limit b for all elements
+    all(a .<= b) || throw(ArgumentError("lower integration limit a must be <= upper integration limit b"))
+    # check that Σ is positive definate; if not, print warning
+    #isposdef(Σ) || @warn "covariance matrix Σ fails positive definite check"
+    # check if Σ, a, or b contains NaNs
+    if any(isnan.(Σ)) || any(isnan.(a)) || any(isnan.(b))
+    	p = NaN
+    	e = NaN
+    	return (p,e)
+    end
+    # check if a==b
+    if a == b
+    	p = 0.0
+    	e = 0.0
+    	return (p,e)
+    end
+    # check if a = -Inf & b = +Inf
+    if all(a .== -Inf) && all(b .== Inf)
+    	p = 1.0
+    	e = 0.0
+    	return (p,e)
+    end
+
+##################################################################
+#
+# Special cases: positive Orthant probabilities for 2- and
+# 3-dimesional Σ have exact solutions. Integration range [0,∞]
+#
+##################################################################
+    if all(a .== zero(eltype(a))) && all(b .== Inf) && n <= 3
+    	#Σstd = sqrt.(diag(Σ))
+        Σstd  = Vector{Float64}(undef, n)
+        @inbounds for i in 1:n
+            d[i] = sqrt(Σ[i, i])
+        end
+    	Rcorr = cov2cor(Σ, Σstd)
+    	if n == 2
+    		p = 1/4 + asin(Rcorr[1,2])/(2π)
+    		e = eps()
+    	elseif n == 3
+    		p = 1/8 + (asin(Rcorr[1,2]) + asin(Rcorr[2,3]) + asin(Rcorr[1,3]))/(4π)
+    		e = eps()
     	end
-    	if size(b,1) < size(b,2)
-    		b = transpose(b)
-    	end
-    	# check that lower integration limit a < upper integration limit b for all elements
-    	all(a .<= b) || throw(ArgumentError("lower integration limit a must be <= upper integration limit b"))
-    	# check that Σ is positive definate; if not, print warning
-    	#isposdef(Σ) || @warn "covariance matrix Σ fails positive definite check"
-    	# check if Σ, a, or b contains NaNs
-    	if any(isnan.(Σ)) || any(isnan.(a)) || any(isnan.(b))
-    		p = NaN
-    		e = NaN
-    		return (p,e)
-    	end
-    	# check if a==b
-    	if a == b
-    		p = 0.0
-    		e = 0.0
-    		return (p,e)
-    	end
-    	# check if a = -Inf & b = +Inf
-    	if all(a .== -Inf) && all(b .== Inf)
-    		p = 1.0
-    		e = 0.0
-    		return (p,e)
-    	end
-    	# check input Σ, a, b are floats; otherwise, convert them
-    	if eltype(Σ)<:Signed
-    		Σ = float(Σ)
-    	end
-    	if eltype(a)<:Signed
-    		a = float(a)
-    	end
-    	if eltype(b)<:Signed
-    		b = float(b)
-    	end
-    	##################################################################
-    	#
-    	# Special cases: positive Orthant probabilities for 2- and
-    	# 3-dimesional Σ have exact solutions. Integration range [0,∞]
-    	#
-    	##################################################################
-    	if all(a .== zero(eltype(a))) && all(b .== Inf) && n <= 3
-    		Σstd = sqrt.(diag(Σ))
-    		Rcorr = cov2cor(Σ,Σstd)
-    		if n == 2
-    			p = 1/4 + asin(Rcorr[1,2])/(2π)
-    			e = eps()
-    		elseif n == 3
-    			p = 1/8 + (asin(Rcorr[1,2]) + asin(Rcorr[2,3]) + asin(Rcorr[1,3]))/(4π)
-    			e = eps()
-    		end
-    		return (p,e)
-    	end
-        qsimvnv(Σ, a, b, m, rng)
+    return (p,e)
+    end
+    a = a .- μ
+    b = b .- μ
+    qsimvnv!(copy_oftype(Σ, Float64), a, b, m, rng)
 end
 
-function qsimvnv(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, m::Integer, rng)
-	##################################################################
-	#
-	# get lower cholesky matrix and (potentially) re-ordered integration vectors
-	#
-	##################################################################
-	(ch, as, bs) = _chlrdr(Σ, a, b) # ch =lower cholesky; as=lower vec; bs=upper vec
-	##################################################################
-	#
-	# quasi-Monte Carlo integration of MVN integral
-	#
-	##################################################################
-	### setup initial values
+"""
+Re-coded in Julia from the MATLAB function qsimvnv(m,r,a,b)
+Alan Genz is the author the MATLAB qsimvnv() function.
+
+! Mutate Σ, a, b.
+"""
+function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, m::Integer, rng)
+##################################################################
+#
+# get lower cholesky matrix and (potentially) re-ordered integration vectors
+#
+##################################################################
+	(ch, as, bs) = _chlrdr!(Σ, a, b) # ch =lower cholesky; as=lower vec; bs=upper vec
+##################################################################
+#
+# quasi-Monte Carlo integration of MVN integral
+#
+##################################################################
+### setup initial values
 	ai = as[1]
 	bi = bs[1]
 	ct = ch[1,1]
 	unitnorm = Normal() # unit normal distribution
-	#rng = RandomDevice()
-	# if ai is -infinity, explicity set c=0
-	# implicitly, the algorith classifies anythign > 9 std. deviations as infinity
+# rng = RandomDevice()
+# if ai is -infinity, explicity set c=0
+# implicitly, the algorith classifies anythign > 9 std. deviations as infinity
 	if ai > -9*ct
 		if ai < 9*ct
 			c1 = cdf.(unitnorm, ai/ct)
@@ -215,7 +217,7 @@ function qsimvnv(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVecto
 	else
 		c1 = 0.0
 	end
-	# if bi is +infinity, explicity set d=0
+# if bi is +infinity, explicity set d=0
 	if bi > -9*ct
 		if bi < 9*ct
 			d1 = cdf(unitnorm, bi/ct)
@@ -225,25 +227,27 @@ function qsimvnv(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVecto
 	else
 		d1 = 0.0
 	end
-	n=size(Σ,1) 	# assume square Cov matrix nxn
-	cxi=c1			# initial cxi; genz uses ci but it conflicts with Lin. Alg. ci variable
-	dci=d1-cxi		# initial dcxi
-	p = 0.0			# probablity = 0
-	e = 0.0			# error = 0
+	n   = size(Σ,1) 	# assume square Cov matrix nxn
+	cxi = c1			# initial cxi; genz uses ci but it conflicts with Lin. Alg. ci variable
+	dci = d1-cxi		# initial dcxi
+	p   = 0.0			# probablity = 0
+	e   = 0.0			# error = 0
 	# Richtmyer generators
-	ps = sqrt.(primes(Int(floor(5*n*log(n+1)/4)))) # Richtmyer generators
-	q  = ps[1:n-1,1]
-	ns = 12
-	nv = Int(max(floor(m/ns),1))
-
+	ps  = sqrt.(primes(Int(floor(5*n*log(n+1)/4)))) # Richtmyer generators
+	q   = ps[1:n-1,1]
+	ns  = 12
+	nv  = Int(max(floor(m/ns),1))
+    ##
 	Jnv    = ones(1, nv)
 	cfill  = transpose(fill(cxi, nv)) 	# evaulate at nv quasirandom points row vec
 	dpfill = transpose(fill(dci, nv))
     y      = zeros(n - 1, nv)				# n-1 rows, nv columns, preset to zero
-	#=Randomization loop for ns samples
-	 j is the number of samples to integrate over,
-	     but each with a vector nv in length
-	 i is the number of dimensions, or integrals to comptue =#
+#=
+Randomization loop for ns samples
+	j is the number of samples to integrate over,
+	but each with a vector nv in length
+	i is the number of dimensions, or integrals to comptue
+=#
      c  = similar(cfill)
      dc = similar(dpfill)
      pv = similar(dpfill)
@@ -256,11 +260,8 @@ function qsimvnv(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVecto
 		copyto!(pv, dpfill)
 
 		for i in 2:n
-
-			#x = transpose(abs.(2.0 .* mod.((1:nv) .* q[i-1] .+ rand(rng), 1) .- 1))	 # periodizing transformation
-			# note: the rand() is not broadcast -- it's a single random uniform value added to all elements
+			#x = transpose(abs.(2.0 .* mod.((1:nv) .* q[i-1] .+ rand(rng), 1) .- 1)) # periodizing transformation # note: the rand() is not broadcast -- it's a single random uniform value added to all elements
             xr = rand(rng)
-
 			#y[i-1,:] = quantile.(unitnorm, c .+ x.*dc)
             @inbounds for cnt = 1:length(c)
                 x = abs(2 * mod(cnt * q[i-1] + xr, 1) - 1)
@@ -268,19 +269,20 @@ function qsimvnv(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVecto
             end
 			#s = view(ch, i, 1:i-1)' * view(y, 1:i-1, :)
             s = mul!(tv , view(ch, i, 1:i-1)' , view(y, 1:i-1, :))
-
-			ct = ch[i,i]										# ch is cholesky matrix
+			ct = ch[i,i] # ch is cholesky matrix
 			#ai = as[i] .- s
 			#bi = bs[i] .- s
-
             copyto!(c, Jnv)										# preset to 1 (>9 sd, +∞)
 			copyto!(d, Jnv)										# preset to 1 (>9 sd, +∞)
-
             asi = as[i]
             bsi = bs[i]
             @inbounds for cnt in 1:length(c)
 			    #c[findall(x -> isless(x,-9*ct),ai)] .= 0.0		# If < -9 sd (-∞), set to zero
 			    #d[findall(x -> isless(x,-9*ct),bi)] .= 0.0		# if < -9 sd (-∞), set to zero
+                #tstl = findall(x -> isless(abs(x),9*ct),ai)		# find cols inbetween -9 and +9 sd (-∞ to +∞)
+                #c[tstl] .= cdf.(unitnorm,ai[tstl]/ct)			# for those, compute Normal CDF
+                #tstl = (findall(x -> isless(abs(x),9*ct),bi))	# find cols inbetween -9 and +9 sd (-∞ to +∞)
+                #d[tstl] .= cdf.(unitnorm,bi[tstl]/ct)
                 aicnt = asi - s[cnt]
                 bicnt = bsi - s[cnt]
                 if isless(aicnt, -9*ct)
@@ -288,35 +290,29 @@ function qsimvnv(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVecto
                 elseif isless(abs(aicnt),9*ct)
                     c[cnt] = cdf(unitnorm, aicnt/ct)
                 end
-
                 if isless(bicnt, -9*ct)
                     d[cnt] = 0.0
                 elseif isless(abs(bicnt),9*ct)
                     d[cnt] = cdf(unitnorm, bicnt/ct)
                 end
             end
-			#tstl = findall(x -> isless(abs(x),9*ct),ai)		# find cols inbetween -9 and +9 sd (-∞ to +∞)
-			#c[tstl] .= cdf.(unitnorm,ai[tstl]/ct)			# for those, compute Normal CDF
-			#tstl = (findall(x -> isless(abs(x),9*ct),bi))	# find cols inbetween -9 and +9 sd (-∞ to +∞)
-			#d[tstl] .= cdf.(unitnorm,bi[tstl]/ct)
 			@. dc = d - c
 			@. pv = pv * dc
-
-		end # for i=
-	dm = (mean(pv)-p)/j
-	p += dm
-	e = (j-2)*e/j+dm^2
-    end # for j=
-
+		end # for i
+	    dm = (mean(pv)-p)/j
+	    p += dm
+	    e = (j-2)*e/j+dm^2
+    end # for j
     e = 3*sqrt(e) 	# error estimate is 3 times standard error with ns samples
-
     return (p,e)  	# return probability value and error estimate
-
 end # function qsimvnv
 
 """
 Computes permuted lower Cholesky factor c for R which may be singular,
   also permuting integration limit vectors a and b.
+
+! Mutate Σ, a, b
+
 # Arguments
 	r		matrix			Matrix for which to compute lower Cholesky matrix,
                             this is a covariance matrix
@@ -346,82 +342,62 @@ ap = [-1, -2, -4]
 Permutated lower input vector:
 bp = [1, 2, 4]
 """
-function _chlrdr(Σ,a::AbstractVector,b::AbstractVector)
+function _chlrdr!(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector)
     # define constants
-    # 64 bit machien error 1.0842021724855e-19 ???
-    # 32 bit machine error 2.220446049250313e-16 ???
+
     ep = 1e-10 # singularity tolerance
-    if Sys.WORD_SIZE == 64
-        fpsize=Float64
-        ϵ = eps(0.0) # 64-bit machine error
-    else
-        fpsize=Float32
-        ϵ = eps(0.0f0) # 32-bit machine error
-    end
+    ϵ  = eps()
     # unit normal distribution
     unitnorm = Normal()
-    n = size(Σ,1) # covariance matrix n x n square
-    ckk = 0.0
-    dem = 0.0
-    am = 0.0
-    bm = 0.0
-    ik = 0.0
-    #=
-    if eltype(Σ)<:Signed
-        c = copy(float(Σ))
-    else
-        c = copy(Σ)
-    end
-    if eltype(a)<:Signed
-        ap = copy(float(a))
-    else
-        ap = copy(a)
-    end
-    if eltype(b)<:Signed
-        bp = copy(float(b))
-    else
-        bp = copy(b)
-    end
-    =#
-    c  = copy(Σ)
-    ap = copy(a)
-    bp = copy(b)
-    d = sqrt.(diag(c))
+    n   = size(Σ,1) # covariance matrix n x n square
+    ckk = zero(Float64)
+    dem = zero(Float64)
+    am  = zero(Float64)
+    bm  = zero(Float64)
+    ik  = zero(Float64)
+
+    c  = Σ
+    ap = a
+    bp = b
+    d  = Vector{Float64}(undef, n)
     @inbounds for i in 1:n
-        if d[i] > 0.0
+        d[i] = sqrt(c[i, i])
+    end
+    @inbounds for i in 1:n
+        if d[i] > 0
             c[:,i] /= d[i]
             c[i,:] /= d[i]
-            ap[i]=ap[i]/d[i]     # ap n x 1 vector
-            bp[i]=bp[i]/d[i]     # bp n x 1 vector
+            ap[i] = ap[i]/d[i]     # ap n x 1 vector
+            bp[i] = bp[i]/d[i]     # bp n x 1 vector
         end
     end
-    y = zeros(fpsize,n) # n x 1 zero vector to start
+    y = zeros(Float64, n) # n x 1 zero vector to start
     @inbounds for k in 1:n
-        ik = k
-        ckk = 0.0
-        dem = 1.0
-        s = 0.0
+        ik  = k
+        ckk = zero(Float64)
+        dem = one(Float64)
+        s   = zero(Float64)
         @inbounds for i in k:n
             if c[i,i] > ϵ  # machine error
-                cii = sqrt(max(c[i,i],0))
-                if i>1 && k>1
-                    s=(c[i,1:(k-1)].*y[1:(k-1)])[1]
+                cii = sqrt(max(c[i,i], 0))
+                if i > 1 && k > 1
+                    s=(c[i,1:(k-1)] .* y[1:(k-1)])[1]
                 end
                 ai=(ap[i]-s)/cii
                 bi=(bp[i]-s)/cii
-                de = cdf(unitnorm,bi) - cdf(unitnorm,ai)
+                de = cdf(unitnorm, bi) - cdf(unitnorm, ai)
 
                 if de <= dem
                     ckk = cii
                     dem = de
-                    am = ai
-                    bm = bi
-                    ik = i
+                    am  = ai
+                    bm  = bi
+                    ik  = i
                 end
             end # if c[i,i]> ϵ
         end # for i=
         i = n
-        if ik>k
+        if ik > k
             ap[ik] , ap[k] = ap[k] , ap[ik]
             bp[ik] , bp[k] = bp[k] , bp[ik]
 
@@ -430,17 +406,17 @@ function _chlrdr(Σ,a::AbstractVector,b::AbstractVector)
             if k > 1
                 c[ik,1:(k-1)] , c[k,1:(k-1)] = c[k,1:(k-1)] , c[ik,1:(k-1)]
             end
-            if ik<n
+            if ik < n
                 c[(ik+1):n,ik] , c[(ik+1):n,k] = c[(ik+1):n,k] , c[(ik+1):n,ik]
             end
-            if k<=(n-1) && ik<=n
+            if k <= (n-1) && ik <= n
                 c[(k+1):(ik-1),k] , c[ik,(k+1):(ik-1)] = transpose(c[ik,(k+1):(ik-1)]) , transpose(c[(k+1):(ik-1),k])
             end
         end # if ik>k
         if ckk > k*ep
-            c[k,k]=ckk
+            c[k,k] = ckk
             if k < n
-                c[k:k,(k+1):n] .= 0.0
+                c[k:k,(k+1):n] .= zero(Float64)
             end
             for i in (k+1):n
                 c[i,k] /= ckk
@@ -449,17 +425,17 @@ function _chlrdr(Σ,a::AbstractVector,b::AbstractVector)
             if abs(dem)>ep
                 y[k] = (exp(-am^2/2)-exp(-bm^2/2))/(sqrt2π*dem)
             else
-                if am<-10
+                if am < -10
                     y[k] = bm
-                elseif bm>10
+                elseif bm > 10
                     y[k]=am
                 else
                     y[k]=(am+bm)/2
                 end
             end # if abs
         else
-            c[k:n,k] .== 0.0
-            y[k] = 0.0
+            c[k:n,k] .== zero(Float64)
+            y[k] = zero(Float64)
         end # if ckk>ep*k
     end # for k=
     return (c, ap, bp)

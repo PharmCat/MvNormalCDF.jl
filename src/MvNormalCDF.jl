@@ -2,7 +2,7 @@
 # Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>, Andrew Gough
 
 module MvNormalCDF
-    using Distributions, Primes, Random, LinearAlgebra
+    using Distributions, Primes, Random, LinearAlgebra, FillArrays
 
     export MvNormal, mvnormcdf
 

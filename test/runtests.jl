@@ -236,3 +236,57 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
 	@test_throws DimensionMismatch MvNormalCDF.mvnormcdf(MvNormal(r),a,b)
 
  end
+
+#=
+using BenchmarkTools
+mvn = MvNormal(td[14,1])
+a = td[14,2]
+b = td[14,3]
+MvNormalCDF.mvnormcdf(mvn,a,b)
+@benchmark  MvNormalCDF.mvnormcdf($mvn, $a, $b)
+
+BenchmarkTools.Trial: 262 samples with 1 evaluation.
+ Range (min … max):  18.809 ms …  29.450 ms  ┊ GC (min … max): 0.00% … 35.47%
+ Time  (median):     19.086 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   19.140 ms ± 676.836 μs  ┊ GC (mean ± σ):  0.21% ±  2.19%
+
+               ▁  ▁▂ ▁▃▃ ▂▂▂▄▁▂██▃▃▃▁▂▃ ▄  ▄   ▁
+  ▃▁▃▁▆▁▁▃█▃▄▃▄█▆▇██▆███▆██████████████▇██▇█▇▇▇█▆█▄▆▆▄▄▃▃▄▁▃▃▃ ▄
+  18.8 ms         Histogram: frequency by time         19.4 ms <
+
+ Memory estimate: 892.28 KiB, allocs estimate: 2334.
+ =#
+
+
+#=
+using BenchmarkTools
+Σ = [4 3 2 1; 3 5 -1 1; 2 -1 4 2; 1 1 2 5]
+μ = zeros(4)
+a = [-Inf; -Inf; -Inf; -Inf]
+b = [1; 2; 3; 4]
+m = 5000
+mvn = MvNormal(Σ)
+@benchmark  MvNormalCDF.mvnormcdf($mvn, $a, $b)
+
+BenchmarkTools.Trial: 7939 samples with 1 evaluation.
+ Range (min … max):  602.700 μs …  18.335 ms  ┊ GC (min … max): 0.00% … 96.37%
+ Time  (median):     621.000 μs               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   627.835 μs ± 199.151 μs  ┊ GC (mean ± σ):  0.35% ±  1.08%
+
+              █▇▁
+  ▂▁▁▂▁▂▂▂▂▃▅▇███▆▄▄▄▄▅▄▄▄▃▃▃▂▂▂▂▂▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂▂ ▃
+  603 μs           Histogram: frequency by time          682 μs <
+
+ Memory estimate: 38.27 KiB, allocs estimate: 98.
+
+julia> @time MvNormalCDF.mvnormcdf(mvn, a, b)
+  0.000663 seconds (98 allocations: 38.266 KiB)
+(0.6055881147694031, 0.0009341283457742374)
+@time MvNormalCDF.mvnormcdf(Σ, a, b)
+  0.000761 seconds (98 allocations: 38.266 KiB)
+(0.6064777984403792, 0.0012501174586413868)
+julia> @time MvNormalCDF.mvnormcdf(μ, Σ, a, b)
+  0.000668 seconds (98 allocations: 38.266 KiB)
+(0.6057553050182675, 0.0019361170915866777)
+
+=#
