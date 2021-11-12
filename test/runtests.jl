@@ -1,7 +1,7 @@
 # MvNormalCDF
 # Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>, Andrew Gough
-
-using Test, MvNormalCDF, Distributions
+using MvNormalCDF
+using Test, Distributions
 
 td = Array{Any}(undef,(14,8))
 #  1-cov mtx 2-a 3-b 4-m 5-p 6-ptol 7-e 8-etol

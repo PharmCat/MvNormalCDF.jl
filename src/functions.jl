@@ -434,7 +434,7 @@ function _chlrdr!(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector)
                 end
             end # if abs
         else
-            c[k:n,k] .== zero(Float64)
+            c[k:n,k] .= zero(Float64)
             y[k] = zero(Float64)
         end # if ckk>ep*k
     end # for k=
