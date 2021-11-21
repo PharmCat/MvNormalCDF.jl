@@ -260,29 +260,18 @@ Randomization loop for ns samples
 		copyto!(pv, dpfill)
 
 		for i in 2:n
-			#x = transpose(abs.(2.0 .* mod.((1:nv) .* q[i-1] .+ rand(rng), 1) .- 1)) # periodizing transformation # note: the rand() is not broadcast -- it's a single random uniform value added to all elements
             xr = rand(rng)
-			#y[i-1,:] = quantile.(unitnorm, c .+ x.*dc)
             @inbounds for cnt = 1:length(c)
                 x = abs(2 * mod(cnt * q[i-1] + xr, 1) - 1)
                 y[i-1, cnt] = quantile(unitnorm, c[cnt] + x * dc[cnt])
             end
-			#s = view(ch, i, 1:i-1)' * view(y, 1:i-1, :)
             s = mul!(tv , view(ch, i, 1:i-1)' , view(y, 1:i-1, :))
 			ct = ch[i,i] # ch is cholesky matrix
-			#ai = as[i] .- s
-			#bi = bs[i] .- s
             copyto!(c, Jnv)										# preset to 1 (>9 sd, +∞)
 			copyto!(d, Jnv)										# preset to 1 (>9 sd, +∞)
             asi = as[i]
             bsi = bs[i]
             @inbounds for cnt in 1:length(c)
-			    #c[findall(x -> isless(x,-9*ct),ai)] .= 0.0		# If < -9 sd (-∞), set to zero
-			    #d[findall(x -> isless(x,-9*ct),bi)] .= 0.0		# if < -9 sd (-∞), set to zero
-                #tstl = findall(x -> isless(abs(x),9*ct),ai)		# find cols inbetween -9 and +9 sd (-∞ to +∞)
-                #c[tstl] .= cdf.(unitnorm,ai[tstl]/ct)			# for those, compute Normal CDF
-                #tstl = (findall(x -> isless(abs(x),9*ct),bi))	# find cols inbetween -9 and +9 sd (-∞ to +∞)
-                #d[tstl] .= cdf.(unitnorm,bi[tstl]/ct)
                 aicnt = asi - s[cnt]
                 bicnt = bsi - s[cnt]
                 if isless(aicnt, -9*ct)
@@ -314,7 +303,7 @@ Computes permuted lower Cholesky factor c for R which may be singular,
 ! Mutate Σ, a, b
 
 # Arguments
-	r		matrix			Matrix for which to compute lower Cholesky matrix,
+	Σ		matrix			Matrix for which to compute lower Cholesky matrix,
                             this is a covariance matrix
 	a		vector			column vector for the lower integration limit
 							algorithm may permutate this vector to improve integration
@@ -342,24 +331,23 @@ ap = [-1, -2, -4]
 Permutated lower input vector:
 bp = [1, 2, 4]
 """
+#############
 function _chlrdr!(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector)
     # define constants
-
     ep = 1e-10 # singularity tolerance
     ϵ  = eps()
     # unit normal distribution
     unitnorm = Normal()
-    n   = size(Σ,1) # covariance matrix n x n square
+    n   = size(Σ, 1) # covariance matrix n x n square
     ckk = zero(Float64)
     dem = zero(Float64)
     am  = zero(Float64)
     bm  = zero(Float64)
-    ik  = zero(Float64)
-
-    c  = Σ
-    ap = a
-    bp = b
-    d  = Vector{Float64}(undef, n)
+    im  = zero(Float64)
+    c   = Σ
+    ap  = a
+    bp  = b
+    d   = Vector{Float64}(undef, n)
     @inbounds for i in 1:n
         d[i] = sqrt(c[i, i])
     end
@@ -367,77 +355,80 @@ function _chlrdr!(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector)
         if d[i] > 0
             c[:,i] /= d[i]
             c[i,:] /= d[i]
-            ap[i] = ap[i]/d[i]     # ap n x 1 vector
-            bp[i] = bp[i]/d[i]     # bp n x 1 vector
+            ap[i]  /= d[i]     # ap n x 1 vector
+            bp[i]  /= d[i]     # bp n x 1 vector
         end
     end
     y = zeros(Float64, n) # n x 1 zero vector to start
     @inbounds for k in 1:n
-        ik  = k
+        im  = k
         ckk = zero(Float64)
         dem = one(Float64)
         s   = zero(Float64)
         @inbounds for i in k:n
             if c[i,i] > ϵ  # machine error
                 cii = sqrt(max(c[i,i], 0))
-                if i > 1 && k > 1
-                    s=(c[i,1:(k-1)] .* y[1:(k-1)])[1]
+                if i > 1  && k > 1
+                    #=
+                    s = ch(i,1:i-1)*y(1:i-1);
+                    seems this it multiplication of row-vector on column-vector
+                    so this is dot product of two vectors in Julia,
+                    not element whise multiplication
+                    =#
+                    #s=(c[i,1:(k-1)] .* y[1:(k-1)])[1]
+                    s = dot(c[i, 1:(k-1)], y[1:(k-1)])
                 end
-                ai=(ap[i]-s)/cii
-                bi=(bp[i]-s)/cii
+                ai=(ap[i] - s)/cii
+                bi=(bp[i] - s)/cii
                 de = cdf(unitnorm, bi) - cdf(unitnorm, ai)
-
                 if de <= dem
                     ckk = cii
                     dem = de
                     am  = ai
                     bm  = bi
-                    ik  = i
+                    im  = i
                 end
             end # if c[i,i]> ϵ
         end # for i=
-        i = n
-        if ik > k
-            ap[ik] , ap[k] = ap[k] , ap[ik]
-            bp[ik] , bp[k] = bp[k] , bp[ik]
-
-            c[ik,ik] = c[k,k]
-
+        if im > k
+            c[im, im] = c[k, k]
+            ap[im] , ap[k] = ap[k] , ap[im]
+            bp[im] , bp[k] = bp[k] , bp[im]
             if k > 1
-                c[ik,1:(k-1)] , c[k,1:(k-1)] = c[k,1:(k-1)] , c[ik,1:(k-1)]
+                c[im, 1:(k-1)], c[k,1:(k-1)] = c[k, 1:(k-1)], c[im, 1:(k-1)]
             end
-            if ik < n
-                c[(ik+1):n,ik] , c[(ik+1):n,k] = c[(ik+1):n,k] , c[(ik+1):n,ik]
+            if im < n
+                c[(im+1):n, im], c[(im+1):n, k] = c[(im+1):n, k], c[(im+1):n, im]
             end
-            if k <= (n-1) && ik <= n
-                c[(k+1):(ik-1),k] , c[ik,(k+1):(ik-1)] = transpose(c[ik,(k+1):(ik-1)]) , transpose(c[(k+1):(ik-1),k])
+            if k <= (n-1) && im <= n
+                c[(k+1):(im-1), k], c[im,(k+1):(im-1)] = transpose(c[im,(k+1):(im-1)]), transpose(c[(k+1):(im-1), k])
             end
-        end # if ik>k
+        end # if im>k
+        if k < n
+            c[k:k, (k+1):n] .= zero(Float64)
+        end
         if ckk > k*ep
-            c[k,k] = ckk
-            if k < n
-                c[k:k,(k+1):n] .= zero(Float64)
+            c[k, k] = ckk
+            for i in k+1:n
+                c[i, k] /= ckk
+                #c[i:i, (k+1):i] -= c[i,k]*transpose(c[(k+1):i,k])
+                axpy!(-c[i,k], view(c, k+1:i, k), view(c, i:i, k+1:i))
             end
-            for i in (k+1):n
-                c[i,k] /= ckk
-                c[i:i,(k+1):i] -= c[i,k]*transpose(c[(k+1):i,k])
-            end
-            if abs(dem)>ep
+            if abs(dem) > ep
                 y[k] = (exp(-am^2/2)-exp(-bm^2/2))/(sqrt2π*dem)
             else
                 if am < -10
                     y[k] = bm
                 elseif bm > 10
-                    y[k]=am
+                    y[k] = am
                 else
-                    y[k]=(am+bm)/2
+                    y[k] = (am + bm)/2
                 end
             end # if abs
         else
-            c[k:n,k] .= zero(Float64)
+            c[k:n, k] .= zero(Float64)
             y[k] = zero(Float64)
         end # if ckk>ep*k
     end # for k=
     return (c, ap, bp)
 end
-#############
