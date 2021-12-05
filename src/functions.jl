@@ -210,7 +210,7 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
 # implicitly, the algorith classifies anythign > 9 std. deviations as infinity
 	if ai > -9*ct
 		if ai < 9*ct
-			c1 = cdf.(unitnorm, ai/ct)
+			c1 = cdf(unitnorm, ai/ct)
 		else
 			c1 = 1.0
 		end

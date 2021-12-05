@@ -1,9 +1,9 @@
 # MvNormalCDF
 # Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>, Andrew Gough
 using MvNormalCDF
-using Test, Distributions
+using Test, Distributions, StableRNGs
 
-td = Array{Any}(undef,(14,8))
+td = Array{Any}(undef,(14,9))
 #  1-cov mtx 2-a 3-b 4-m 5-p 6-ptol 7-e 8-etol
 
 # from MATLAB documenation 4 dim
@@ -185,6 +185,22 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
  td[14,7] = 0.00000181746
  td[14,8] = 0.000001083068
 
+
+ td[1,9] = 0.6054064156442294
+ td[2,9] = 0.8279766144831429
+ td[3,9] = 0.6536793504453967
+ td[4,9] = 0.9431576518489296
+ td[5,9] = 0.8279829100356028
+ td[6,9] = 0.8413447460685427
+ td[7,9] = 0.7612423324911164
+ td[8,9] = 0.4741170481094123
+ td[9,9] = 0.11351703757272677
+ td[10,9] = 0.8103089978617527
+ td[11,9] = 0.7593693258920418
+ td[12,9] = 0.19640599118630003
+ td[13,9] = 1.0
+ td[14,9] = 0.6653426686040154
+
  @testset "MvNormalCDF test" begin
 	for i in 1:14
 	    r = td[i,1]
@@ -196,11 +212,14 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
 	    ptol = td[i,6]
 	    etol = td[i,8]
 
-	    (p,e) = MvNormalCDF.mvnormcdf(r, a, b; m=m)
+	    (p,e) = MvNormalCDF.mvnormcdf(r, a, b; m=m, rng = StableRNG(1234))
+		v = p
 		p = round(p, digits=6)
 
-	     @test p ≈ pexpected atol=ptol
-	     @test e ≈ eexpected atol=etol
+	    @test p ≈ pexpected atol=ptol
+	    @test e ≈ eexpected atol=etol
+
+		@test v ≈ td[i, 9] atol=1e-10
 	end
 
     # test warning on singular Σ
