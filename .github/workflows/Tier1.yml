@@ -18,6 +18,11 @@ on:
     paths-ignore:
       - 'LICENSE.md'
       - 'README.md'
+  page_build:
+  workflow_dispatch:
+  release:
+    types: # This configuration does not affect the page_build event above
+      - created
 jobs:
   ci:
     runs-on: ${{ matrix.os }}
