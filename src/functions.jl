@@ -165,7 +165,7 @@ function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b:
     	#Σstd = sqrt.(diag(Σ))
         Σstd  = Vector{Float64}(undef, n)
         @inbounds for i in 1:n
-            d[i] = sqrt(Σ[i, i])
+            Σstd[i] = sqrt(Σ[i, i])
         end
     	Rcorr = cov2cor(Σ, Σstd)
     	if n == 2

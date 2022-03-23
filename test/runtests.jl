@@ -222,6 +222,9 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
 		@test v ≈ td[i, 9] atol=1e-10
 	end
 
+	#just test not validation
+	@test_nowarn MvNormalCDF.mvnormcdf(td[3,1], [0, 0, 0], [Inf, Inf, Inf]; m=m, rng = StableRNG(1234))
+
     # test warning on singular Σ
     r = td[6,1]
     a = td[6,2]

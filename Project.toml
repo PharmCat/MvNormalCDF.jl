@@ -12,11 +12,13 @@ FillArrays = "1a297f60-69ca-5386-bcde-b61e274b549b"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Primes = "27ebfcd6-29c5-5fa9-bf4b-fb8fc14df3ae"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
 Distributions = "0.20, 0.21, 0.22, 0.23, 0.24, 0.25"
 FillArrays = "0.9, 0.10, 0.11, 0.12, 0.13"
 Primes = "0.5"
+StatsBase = "0.29, 0.30, 0.31, 0.32, 0.33"
 julia = "1"
 
 [extras]
