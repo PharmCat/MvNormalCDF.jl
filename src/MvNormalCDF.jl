@@ -7,6 +7,7 @@ module MvNormalCDF
     export MvNormal, mvnormcdf
 
     const sqrt2π = sqrt(2π)
+    const ZDIST  = Normal()
 
     include("functions.jl")
 end # module

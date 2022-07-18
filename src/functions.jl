@@ -124,8 +124,8 @@ b = [2; 2]
 """
 function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
     # check for proper dimensions
-    n =size(Σ, 1)
-    nc=size(Σ, 2) 	# assume square Cov matrix nxn
+    n  = size(Σ, 1)
+    nc = size(Σ, 2) 	# assume square Cov matrix nxn
     # check dimension > 1
     n >= 2   || throw(ErrorException("dimension of Σ must be 2 or greater. Σ dimension: $(size(Σ))"))
     n == nc  || throw(DimensionMismatch("Σ matrix must be square. Σ dimension: $(size(Σ))"))
@@ -140,19 +140,19 @@ function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b:
     if any(isnan.(Σ)) || any(isnan.(a)) || any(isnan.(b))
     	p = NaN
     	e = NaN
-    	return (p,e)
+    	return (p, e)
     end
     # check if a==b
     if a == b
     	p = 0.0
     	e = 0.0
-    	return (p,e)
+    	return (p, e)
     end
     # check if a = -Inf & b = +Inf
     if all(a .== -Inf) && all(b .== Inf)
     	p = 1.0
     	e = 0.0
-    	return (p,e)
+    	return (p, e)
     end
 
 ##################################################################
@@ -169,10 +169,10 @@ function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b:
         end
     	Rcorr = cov2cor(Σ, Σstd)
     	if n == 2
-    		p = 1/4 + asin(Rcorr[1,2])/(2π)
+    		p = 1/4 + asin(Rcorr[1, 2]) / (2π)
     		e = eps()
     	elseif n == 3
-    		p = 1/8 + (asin(Rcorr[1,2]) + asin(Rcorr[2,3]) + asin(Rcorr[1,3]))/(4π)
+    		p = 1/8 + (asin(Rcorr[1, 2]) + asin(Rcorr[2, 3]) + asin(Rcorr[1, 3])) / (4π)
     		e = eps()
     	end
     return (p,e)
@@ -203,14 +203,14 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
 ### setup initial values
 	ai = as[1]
 	bi = bs[1]
-	ct = ch[1,1]
-	unitnorm = Normal() # unit normal distribution
+	ct = ch[1, 1]
+	#unitnorm = Normal() # unit normal distribution
 # rng = RandomDevice()
 # if ai is -infinity, explicity set c=0
 # implicitly, the algorith classifies anythign > 9 std. deviations as infinity
-	if ai > -9*ct
-		if ai < 9*ct
-			c1 = cdf(unitnorm, ai/ct)
+	if ai > -9 * ct
+		if ai < 9 * ct
+			c1 = cdf(ZDIST, ai / ct)
 		else
 			c1 = 1.0
 		end
@@ -218,9 +218,9 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
 		c1 = 0.0
 	end
 # if bi is +infinity, explicity set d=0
-	if bi > -9*ct
-		if bi < 9*ct
-			d1 = cdf(unitnorm, bi/ct)
+	if bi > -9 * ct
+		if bi < 9 * ct
+			d1 = cdf(ZDIST, bi / ct)
 		else
 			d1 = 1.0
 		end
@@ -229,14 +229,14 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
 	end
 	n   = size(Σ,1) 	# assume square Cov matrix nxn
 	cxi = c1			# initial cxi; genz uses ci but it conflicts with Lin. Alg. ci variable
-	dci = d1-cxi		# initial dcxi
+	dci = d1 - cxi		# initial dcxi
 	p   = 0.0			# probablity = 0
 	e   = 0.0			# error = 0
 	# Richtmyer generators
-	ps  = sqrt.(primes(Int(floor(5*n*log(n+1)/4)))) # Richtmyer generators
-	q   = ps[1:n-1,1]
+	ps  = sqrt.(primes(Int(floor(5 * n * log(n + 1) / 4)))) # Richtmyer generators
+	q   = ps[1:n - 1, 1]
 	ns  = 12
-	nv  = Int(max(floor(m/ns),1))
+	nv  = Int(max(floor(m / ns), 1))
     ##
 	Jnv    = ones(1, nv)
 	cfill  = transpose(fill(cxi, nv)) 	# evaulate at nv quasirandom points row vec
@@ -262,10 +262,10 @@ Randomization loop for ns samples
 		for i in 2:n
             xr = rand(rng)
             @inbounds for cnt = 1:length(c)
-                x = abs(2 * mod(cnt * q[i-1] + xr, 1) - 1)
-                y[i-1, cnt] = quantile(unitnorm, c[cnt] + x * dc[cnt])
+                x = abs(2 * mod(cnt * q[i - 1] + xr, 1) - 1)
+                y[i - 1, cnt] = quantile(ZDIST, c[cnt] + x * dc[cnt])
             end
-            s = mul!(tv , view(ch, i, 1:i-1)' , view(y, 1:i-1, :))
+            s = mul!(tv, view(ch, i, 1:i - 1)', view(y, 1:i - 1, :))
 			ct = ch[i,i] # ch is cholesky matrix
             copyto!(c, Jnv)										# preset to 1 (>9 sd, +∞)
 			copyto!(d, Jnv)										# preset to 1 (>9 sd, +∞)
@@ -274,25 +274,25 @@ Randomization loop for ns samples
             @inbounds for cnt in 1:length(c)
                 aicnt = asi - s[cnt]
                 bicnt = bsi - s[cnt]
-                if isless(aicnt, -9*ct)
+                if isless(aicnt, -9 * ct)
                     c[cnt] = 0.0
-                elseif isless(abs(aicnt),9*ct)
-                    c[cnt] = cdf(unitnorm, aicnt/ct)
+                elseif isless(abs(aicnt), 9 * ct)
+                    c[cnt] = cdf(ZDIST, aicnt/ct)
                 end
-                if isless(bicnt, -9*ct)
+                if isless(bicnt, -9 * ct)
                     d[cnt] = 0.0
-                elseif isless(abs(bicnt),9*ct)
-                    d[cnt] = cdf(unitnorm, bicnt/ct)
+                elseif isless(abs(bicnt), 9 * ct)
+                    d[cnt] = cdf(ZDIST, bicnt / ct)
                 end
             end
 			@. dc = d - c
 			@. pv = pv * dc
 		end # for i
-	    dm = (mean(pv)-p)/j
+	    dm = (mean(pv) - p) / j
 	    p += dm
-	    e = (j-2)*e/j+dm^2
+	    e = (j - 2) * e / j + dm^2
     end # for j
-    e = 3*sqrt(e) 	# error estimate is 3 times standard error with ns samples
+    e = 3 * sqrt(e) 	# error estimate is 3 times standard error with ns samples
     return (p,e)  	# return probability value and error estimate
 end # function qsimvnv
 
@@ -332,42 +332,42 @@ Permutated lower input vector:
 bp = [1, 2, 4]
 """
 #############
-function _chlrdr!(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector)
+function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}) where T <: Real
     # define constants
     ep = 1e-10 # singularity tolerance
     ϵ  = eps()
     # unit normal distribution
-    unitnorm = Normal()
+    #unitnorm = Normal()
     n   = size(Σ, 1) # covariance matrix n x n square
-    ckk = zero(Float64)
-    dem = zero(Float64)
-    am  = zero(Float64)
-    bm  = zero(Float64)
-    im  = zero(Float64)
+    ckk = zero(T)
+    dem = zero(T)
+    am  = zero(T)
+    bm  = zero(T)
+    im  = zero(T)
     c   = Σ
     ap  = a
     bp  = b
-    d   = Vector{Float64}(undef, n)
+    d   = Vector{T}(undef, n)
     @inbounds for i in 1:n
         d[i] = sqrt(c[i, i])
     end
     @inbounds for i in 1:n
         if d[i] > 0
-            c[:,i] /= d[i]
-            c[i,:] /= d[i]
-            ap[i]  /= d[i]     # ap n x 1 vector
-            bp[i]  /= d[i]     # bp n x 1 vector
+            c[:, i] /= d[i]
+            c[i, :] /= d[i]
+            ap[i]   /= d[i]     # ap n x 1 vector
+            bp[i]   /= d[i]     # bp n x 1 vector
         end
     end
-    y = zeros(Float64, n) # n x 1 zero vector to start
+    y = zeros(T, n) # n x 1 zero vector to start
     @inbounds for k in 1:n
         im  = k
-        ckk = zero(Float64)
-        dem = one(Float64)
-        s   = zero(Float64)
+        ckk = zero(T)
+        dem = one(T)
+        s   = zero(T)
         @inbounds for i in k:n
-            if c[i,i] > ϵ  # machine error
-                cii = sqrt(max(c[i,i], 0))
+            if c[i, i] > ϵ  # machine error
+                cii = sqrt(max(c[i, i], 0))
                 if i > 1  && k > 1
                     #=
                     s = ch(i,1:i-1)*y(1:i-1);
@@ -376,11 +376,13 @@ function _chlrdr!(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector)
                     not element whise multiplication
                     =#
                     #s=(c[i,1:(k-1)] .* y[1:(k-1)])[1]
-                    s = dot(c[i, 1:(k-1)], y[1:(k-1)])
+                    #test
+                    s = dot(view(c, i, 1:(k - 1)), view(y, 1:(k - 1)))
+                    #s = dot(c[i, 1:(k-1)], y[1:(k-1)])
                 end
-                ai=(ap[i] - s)/cii
-                bi=(bp[i] - s)/cii
-                de = cdf(unitnorm, bi) - cdf(unitnorm, ai)
+                ai=(ap[i] - s) / cii
+                bi=(bp[i] - s) / cii
+                de = cdf(ZDIST, bi) - cdf(ZDIST, ai)
                 if de <= dem
                     ckk = cii
                     dem = de
@@ -395,27 +397,27 @@ function _chlrdr!(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector)
             ap[im] , ap[k] = ap[k] , ap[im]
             bp[im] , bp[k] = bp[k] , bp[im]
             if k > 1
-                c[im, 1:(k-1)], c[k,1:(k-1)] = c[k, 1:(k-1)], c[im, 1:(k-1)]
+                c[im, 1:(k - 1)], c[k, 1:(k - 1)] = c[k, 1:(k - 1)], c[im, 1:(k - 1)]
             end
             if im < n
-                c[(im+1):n, im], c[(im+1):n, k] = c[(im+1):n, k], c[(im+1):n, im]
+                c[(im + 1):n, im], c[(im + 1):n, k] = c[(im + 1):n, k], c[(im + 1):n, im]
             end
-            if k <= (n-1) && im <= n
-                c[(k+1):(im-1), k], c[im,(k+1):(im-1)] = transpose(c[im,(k+1):(im-1)]), transpose(c[(k+1):(im-1), k])
+            if k <= (n - 1) && im <= n
+                c[(k + 1):(im - 1), k], c[im, (k + 1):(im - 1)] = transpose(c[im, (k + 1):(im - 1)]), transpose(c[(k + 1):(im - 1), k])
             end
         end # if im>k
         if k < n
-            c[k:k, (k+1):n] .= zero(Float64)
+            c[k:k, (k + 1):n] .= zero(T)
         end
-        if ckk > k*ep
+        if ckk > k * ep
             c[k, k] = ckk
-            for i in k+1:n
+            for i in k + 1:n
                 c[i, k] /= ckk
                 #c[i:i, (k+1):i] -= c[i,k]*transpose(c[(k+1):i,k])
-                axpy!(-c[i,k], view(c, k+1:i, k), view(c, i:i, k+1:i))
+                axpy!(-c[i, k], view(c, k + 1:i, k), view(c, i:i, k + 1:i))
             end
             if abs(dem) > ep
-                y[k] = (exp(-am^2/2)-exp(-bm^2/2))/(sqrt2π*dem)
+                y[k] = (exp(-am^2 / 2) - exp(-bm^2 / 2)) / (sqrt2π * dem)
             else
                 if am < -10
                     y[k] = bm
@@ -426,8 +428,8 @@ function _chlrdr!(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector)
                 end
             end # if abs
         else
-            c[k:n, k] .= zero(Float64)
-            y[k] = zero(Float64)
+            c[k:n, k] .= zero(T)
+            y[k] = zero(T)
         end # if ckk>ep*k
     end # for k=
     return (c, ap, bp)
