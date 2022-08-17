@@ -312,3 +312,23 @@ julia> @time MvNormalCDF.mvnormcdf(μ, Σ, a, b)
 (0.6057553050182675, 0.0019361170915866777)
 
 =#
+#=
+r = td[10,1]
+a = td[10,2]
+b = td[10,3]
+m = td[10,4]
+
+
+julia> @benchmark  MvNormalCDF.mvnormcdf($r, $a, $b; m=$m, rng = StableRNG(1234))
+BenchmarkTools.Trial: 1525 samples with 1 evaluation.
+ Range (min … max):  3.083 ms …  10.807 ms  ┊ GC (min … max): 0.00% … 69.49%
+ Time  (median):     3.180 ms               ┊ GC (median):    0.00%
+ Time  (mean ± σ):   3.268 ms ± 311.169 μs  ┊ GC (mean ± σ):  0.15% ±  1.78%
+
+   ▃█▅▁
+  ▆████▇▇▇▆▄▄▃▃▃▃▃▃▂▃▃▂▃▂▃▂▂▂▂▂▂▁▂▂▂▂▂▂▂▂▂▁▂▂▂▂▂▁▁▂▂▂▂▂▂▁▁▂▂▂ ▃
+  3.08 ms         Histogram: frequency by time        4.38 ms <
+
+ Memory estimate: 52.70 KiB, allocs estimate: 63.
+
+=#

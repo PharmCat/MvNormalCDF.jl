@@ -135,48 +135,48 @@ function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b:
     # check that lower integration limit a < upper integration limit b for all elements
     all(a .<= b) || throw(ArgumentError("lower integration limit a must be <= upper integration limit b"))
     # check that Σ is positive definate; if not, print warning
-    #isposdef(Σ) || @warn "covariance matrix Σ fails positive definite check"
+    # isposdef(Σ) || @warn "covariance matrix Σ fails positive definite check"
     # check if Σ, a, or b contains NaNs
     if any(isnan.(Σ)) || any(isnan.(a)) || any(isnan.(b))
-    	p = NaN
-    	e = NaN
-    	return (p, e)
+        p = NaN
+        e = NaN
+        return (p, e)
     end
     # check if a==b
     if a == b
-    	p = 0.0
-    	e = 0.0
-    	return (p, e)
+        p = 0.0
+        e = 0.0
+        return (p, e)
     end
     # check if a = -Inf & b = +Inf
     if all(a .== -Inf) && all(b .== Inf)
-    	p = 1.0
-    	e = 0.0
-    	return (p, e)
+        p = 1.0
+        e = 0.0
+        return (p, e)
     end
-
-##################################################################
-#
-# Special cases: positive Orthant probabilities for 2- and
-# 3-dimesional Σ have exact solutions. Integration range [0,∞]
-#
-##################################################################
+    ##################################################################
+    #
+    # Special cases: positive Orthant probabilities for 2- and
+    # 3-dimesional Σ have exact solutions. Integration range [0,∞]
+    #
+    ##################################################################
     if all(a .== zero(eltype(a))) && all(b .== Inf) && n <= 3
-    	#Σstd = sqrt.(diag(Σ))
+        #Σstd = sqrt.(diag(Σ))
         Σstd  = Vector{Float64}(undef, n)
         @inbounds for i in 1:n
             Σstd[i] = sqrt(Σ[i, i])
         end
-    	Rcorr = cov2cor(Σ, Σstd)
-    	if n == 2
-    		p = 1/4 + asin(Rcorr[1, 2]) / (2π)
-    		e = eps()
-    	elseif n == 3
-    		p = 1/8 + (asin(Rcorr[1, 2]) + asin(Rcorr[2, 3]) + asin(Rcorr[1, 3])) / (4π)
-    		e = eps()
-    	end
-    return (p,e)
+        Rcorr = cov2cor(Σ, Σstd)
+        if n == 2
+            p = 1/4 + asin(Rcorr[1, 2]) / (2π)
+            e = eps()
+        elseif n == 3
+            p = 1/8 + (asin(Rcorr[1, 2]) + asin(Rcorr[2, 3]) + asin(Rcorr[1, 3])) / (4π)
+            e = eps()
+        end
+        return (p,e)
     end
+    #
     a = a .- μ
     b = b .- μ
     qsimvnv!(copy_oftype(Σ, Float64), a, b, m, rng)
@@ -189,108 +189,108 @@ Alan Genz is the author the MATLAB qsimvnv() function.
 ! Mutate Σ, a, b.
 """
 function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, m::Integer, rng)
-##################################################################
-#
-# get lower cholesky matrix and (potentially) re-ordered integration vectors
-#
-##################################################################
-	(ch, as, bs) = _chlrdr!(Σ, a, b) # ch =lower cholesky; as=lower vec; bs=upper vec
-##################################################################
-#
-# quasi-Monte Carlo integration of MVN integral
-#
-##################################################################
-### setup initial values
-	ai = as[1]
-	bi = bs[1]
-	ct = ch[1, 1]
-	#unitnorm = Normal() # unit normal distribution
-# rng = RandomDevice()
-# if ai is -infinity, explicity set c=0
-# implicitly, the algorith classifies anythign > 9 std. deviations as infinity
-	if ai > -9 * ct
-		if ai < 9 * ct
-			c1 = cdf(ZDIST, ai / ct)
-		else
-			c1 = 1.0
-		end
-	else
-		c1 = 0.0
-	end
-# if bi is +infinity, explicity set d=0
-	if bi > -9 * ct
-		if bi < 9 * ct
-			d1 = cdf(ZDIST, bi / ct)
-		else
-			d1 = 1.0
-		end
-	else
-		d1 = 0.0
-	end
-	n   = size(Σ,1) 	# assume square Cov matrix nxn
-	cxi = c1			# initial cxi; genz uses ci but it conflicts with Lin. Alg. ci variable
-	dci = d1 - cxi		# initial dcxi
-	p   = 0.0			# probablity = 0
-	e   = 0.0			# error = 0
-	# Richtmyer generators
-	ps  = sqrt.(primes(Int(floor(5 * n * log(n + 1) / 4)))) # Richtmyer generators
-	q   = ps[1:n - 1, 1]
-	ns  = 12
-	nv  = Int(max(floor(m / ns), 1))
+    ##################################################################
+    #
+    # get lower cholesky matrix and (potentially) re-ordered integration vectors
+    #
+    ##################################################################
+    (ch, as, bs) = _chlrdr!(Σ, a, b) # ch =lower cholesky; as=lower vec; bs=upper vec
+    ##################################################################
+    #
+    # quasi-Monte Carlo integration of MVN integral
+    #
+    ##################################################################
+    ### setup initial values
+    ai = as[1]
+    bi = bs[1]
+    ct = ch[1, 1]
+    #  unitnorm = Normal() # unit normal distribution
+    # rng = RandomDevice()
+    # if ai is -infinity, explicity set c=0
+    # implicitly, the algorith classifies anythign > 9 std. deviations as infinity
+    if ai > -9 * ct
+        if ai < 9 * ct
+            c1 = cdf(ZDIST, ai / ct)
+        else
+            c1 = 1.0
+        end
+    else
+        c1 = 0.0
+    end
+    # if bi is +infinity, explicity set d=0
+    if bi > -9 * ct
+        if bi < 9 * ct
+            d1 = cdf(ZDIST, bi / ct)
+        else
+            d1 = 1.0
+        end
+    else
+        d1 = 0.0
+    end
+    n   = size(Σ,1) 	# assume square Cov matrix nxn
+    cxi = c1			# initial cxi; genz uses ci but it conflicts with Lin. Alg. ci variable
+    dci = d1 - cxi		# initial dcxi
+    p   = 0.0			# probablity = 0
+    e   = 0.0			# error = 0
+    # Richtmyer generators
+    ps  = sqrt.(primes(Int(floor(5 * n * log(n + 1) / 4)))) # Richtmyer generators
+    q   = ps[1:n - 1, 1]
+    ns  = 12
+    nv  = Int(max(floor(m / ns), 1))
     ##
-	Jnv    = ones(1, nv)
-	cfill  = transpose(fill(cxi, nv)) 	# evaulate at nv quasirandom points row vec
-	dpfill = transpose(fill(dci, nv))
-    y      = zeros(n - 1, nv)				# n-1 rows, nv columns, preset to zero
-#=
-Randomization loop for ns samples
-	j is the number of samples to integrate over,
-	but each with a vector nv in length
-	i is the number of dimensions, or integrals to comptue
-=#
-     c  = similar(cfill)
-     dc = similar(dpfill)
-     pv = similar(dpfill)
-     d  = similar(Jnv)
-     tv = zeros(nv)'
+    Jnv    = ones(1, nv)
+    cfill  = transpose(fill(cxi, nv)) 	# evaulate at nv quasirandom points row vec
+    dpfill = transpose(fill(dci, nv))
+    y      = zeros(nv, n - 1)			# n-1 (cols), nv (rows), preset to zero # change row-col for col-operation
+    #=
+    Randomization loop for ns samples
+    j is the number of samples to integrate over,
+    but each with a vector nv in length
+    i is the number of dimensions, or integrals to comptue
+    =#
+    c  = similar(cfill)
+    dc = similar(dpfill)
+    pv = similar(dpfill)
+    d  = similar(Jnv)
+    tv = zeros(nv)
 
-	for j in 1:ns					# loop for ns samples
-		copyto!(c, cfill)
-		copyto!(dc, dpfill)
-		copyto!(pv, dpfill)
+    for j in 1:ns					# loop for ns samples
+        copyto!(c, cfill)
+        copyto!(dc, dpfill)
+        copyto!(pv, dpfill)
 
-		for i in 2:n
+        @inbounds for i in 2:n                # n - dimentions
             xr = rand(rng)
             @inbounds for cnt = 1:length(c)
                 x = abs(2 * mod(cnt * q[i - 1] + xr, 1) - 1)
-                y[i - 1, cnt] = quantile(ZDIST, c[cnt] + x * dc[cnt])
+                y[cnt, i - 1] = quantile(ZDIST, c[cnt] + x * dc[cnt])
             end
-            s = mul!(tv, view(ch, i, 1:i - 1)', view(y, 1:i - 1, :))
-			ct = ch[i,i] # ch is cholesky matrix
+            s = mul!(tv, view(y, :, 1:i - 1), view(ch, i, 1:i - 1))
+            ct = ch[i, i]                                       # ch is cholesky matrix
             copyto!(c, Jnv)										# preset to 1 (>9 sd, +∞)
-			copyto!(d, Jnv)										# preset to 1 (>9 sd, +∞)
+            copyto!(d, Jnv)										# preset to 1 (>9 sd, +∞)
             asi = as[i]
             bsi = bs[i]
             @inbounds for cnt in 1:length(c)
                 aicnt = asi - s[cnt]
                 bicnt = bsi - s[cnt]
-                if isless(aicnt, -9 * ct)
+                if isless(aicnt, -9ct)
                     c[cnt] = 0.0
-                elseif isless(abs(aicnt), 9 * ct)
-                    c[cnt] = cdf(ZDIST, aicnt/ct)
+                elseif isless(abs(aicnt), 9ct)
+                    c[cnt] = cdf(ZDIST, aicnt / ct)
                 end
-                if isless(bicnt, -9 * ct)
+                if isless(bicnt, -9ct)
                     d[cnt] = 0.0
-                elseif isless(abs(bicnt), 9 * ct)
+                elseif isless(abs(bicnt), 9ct)
                     d[cnt] = cdf(ZDIST, bicnt / ct)
                 end
             end
-			@. dc = d - c
-			@. pv = pv * dc
-		end # for i
-	    dm = (mean(pv) - p) / j
-	    p += dm
-	    e = (j - 2) * e / j + dm^2
+            @. dc = d - c
+            @. pv = pv * dc
+        end # for i
+        dm = (mean(pv) - p) / j
+        p += dm
+        e = (j - 2) * e / j + dm * dm
     end # for j
     e = 3 * sqrt(e) 	# error estimate is 3 times standard error with ns samples
     return (p,e)  	# return probability value and error estimate
