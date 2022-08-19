@@ -55,6 +55,7 @@ Computes the Multivariate Normal probability integral using a quasi-Monte-Carlo
 algorithm with m points for multivariate normal distributions ([MvNormal](https://juliastats.org/Distributions.jl/stable/multivariate/#Distributions.MvNormal))
 
 Probability p is output with error estimate e.
+
 # Arguments
 - `dist::MvNormal`: multivariate normal distributions from Distributions.jl
 - `a::AbstractVector`: lower integration limit column vector
@@ -208,8 +209,8 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
     # rng = RandomDevice()
     # if ai is -infinity, explicity set c=0
     # implicitly, the algorith classifies anythign > 9 std. deviations as infinity
-    if ai > -9 * ct
-        if ai < 9 * ct
+    if ai > -9ct
+        if ai < 9ct
             c1 = cdf(ZDIST, ai / ct)
         else
             c1 = 1.0
@@ -218,8 +219,8 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
         c1 = 0.0
     end
     # if bi is +infinity, explicity set d=0
-    if bi > -9 * ct
-        if bi < 9 * ct
+    if bi > -9ct
+        if bi < 9ct
             d1 = cdf(ZDIST, bi / ct)
         else
             d1 = 1.0
@@ -227,7 +228,7 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
     else
         d1 = 0.0
     end
-    n   = size(Σ,1) 	# assume square Cov matrix nxn
+    n   = size(Σ, 1) 	# assume square Cov matrix nxn
     cxi = c1			# initial cxi; genz uses ci but it conflicts with Lin. Alg. ci variable
     dci = d1 - cxi		# initial dcxi
     p   = 0.0			# probablity = 0
@@ -239,8 +240,8 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
     nv  = Int(max(floor(m / ns), 1))
     ##
     Jnv    = ones(1, nv)
-    cfill  = transpose(fill(cxi, nv)) 	# evaulate at nv quasirandom points row vec
-    dpfill = transpose(fill(dci, nv))
+    cfill  = fill(cxi, nv) 	            # evaulate at nv quasirandom points row vec
+    dpfill = fill(dci, nv)
     y      = zeros(nv, n - 1)			# n-1 (cols), nv (rows), preset to zero # change row-col for col-operation
     #=
     Randomization loop for ns samples
@@ -248,10 +249,10 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
     but each with a vector nv in length
     i is the number of dimensions, or integrals to comptue
     =#
-    c  = similar(cfill)
-    dc = similar(dpfill)
-    pv = similar(dpfill)
-    d  = similar(Jnv)
+    c  = zeros(length(cfill))
+    dc = zeros(length(dpfill))
+    pv = zeros(length(dpfill))
+    d  = zeros(length(Jnv))
     tv = zeros(nv)
 
     for j in 1:ns					# loop for ns samples
@@ -265,12 +266,14 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
                 x = abs(2 * mod(cnt * q[i - 1] + xr, 1) - 1)
                 y[cnt, i - 1] = quantile(ZDIST, c[cnt] + x * dc[cnt])
             end
+
             s = mul!(tv, view(y, :, 1:i - 1), view(ch, i, 1:i - 1))
             ct = ch[i, i]                                       # ch is cholesky matrix
             copyto!(c, Jnv)										# preset to 1 (>9 sd, +∞)
             copyto!(d, Jnv)										# preset to 1 (>9 sd, +∞)
             asi = as[i]
             bsi = bs[i]
+
             @inbounds for cnt in 1:length(c)
                 aicnt = asi - s[cnt]
                 bicnt = bsi - s[cnt]
@@ -288,12 +291,13 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
             @. dc = d - c
             @. pv = pv * dc
         end # for i
+
         dm = (mean(pv) - p) / j
         p += dm
         e = (j - 2) * e / j + dm * dm
     end # for j
     e = 3 * sqrt(e) 	# error estimate is 3 times standard error with ns samples
-    return (p,e)  	# return probability value and error estimate
+    return (p, e)  	# return probability value and error estimate
 end # function qsimvnv
 
 """

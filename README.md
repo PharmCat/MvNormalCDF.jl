@@ -50,6 +50,8 @@ There is no covariance matrix Σ positive definite check.
 
 Probability p is output with error estimate e.
 
+> :warning: **Check estimate e after integration.**: Be very careful here! If `e == 0` - results could be unstable or could be wrong (one of the reasons can be an ill-conditioned Σ matrix).
+
 ## Arguments
 - `dist::MvNormal`: multivariate normal distributions from Distributions.jl
 - `a::AbstractVector`: lower integration limit column vector
@@ -104,6 +106,7 @@ b = [2; 2]
 - Genz, A. (1993). Comparison of methods for the computation of multivariate normal probabilities. Computing Science and Statistics, 25, 400--405
 
 # P.S.
+
 Idea was taken from this [PR](https://github.com/JuliaStats/StatsFuns.jl/pull/114) to StatsFuns.jl.
 
 See discourse discussion [here](https://discourse.julialang.org/t/mvn-cdf-have-it-coded-need-help-getting-integrating-into-distributions-jl/38631).
