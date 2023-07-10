@@ -179,7 +179,11 @@ function mvnormcdf(μ::AbstractVector{T1}, Σ::AbstractMatrix{T2}, a::AbstractVe
         return (p, e)
     end
     #
-    qsimvnv!(copy_oftype(Σ, T), a .- μ, b .- μ, m, rng)
+    at = copy_oftype(a, T)
+    bt = copy_oftype(b, T)
+    at .-= μ
+    bt .-= μ
+    qsimvnv!(copy_oftype(Σ, T), at, bt, m, rng)
 end
 
 """

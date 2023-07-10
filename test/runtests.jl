@@ -266,7 +266,15 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
   bg = [1; 4; 2]
   gf(x) = MvNormalCDF.mvnormcdf(x, Σ, ag, bg)[1]
   @test_nowarn ForwardDiff.gradient(gf, [1, 2, 3])
+
+  μ = [1., 2., 3.] 
+  Σ = [1 0.25 0.2; 0.25 1 0.333333333; 0.2 0.333333333 1]
+  ag = [-1; -4; -2]
+  bg = [1; 4; 2]
+  gf2(x) = MvNormalCDF.mvnormcdf(μ, reshape(x, 3, 3), ag, bg)[1]
+  @test_nowarn ForwardDiff.gradient(gf2, [1, 0.25, 0.2, 0.25, 1, 0.333333333, 0.2, 0.333333333, 1])
 end
+
 
 #=
 using BenchmarkTools
