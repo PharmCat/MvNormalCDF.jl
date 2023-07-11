@@ -123,8 +123,8 @@ b = [2; 2]
 #(0.4306346895870772, 0.00015776288569406053)
 ```
 """
-function mvnormcdf(μ::AbstractVector{T1}, Σ::AbstractMatrix{T2}, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice()) where T1 where T2
-    T = promote_type(T1, T2, Float64)
+function mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice()) 
+    T = promote_type(eltype(μ), eltype(Σ), eltype(a), eltype(b), Float64)
     # check for proper dimensions
     n  = size(Σ, 1)
     nc = size(Σ, 2) 	# assume square Cov matrix nxn
@@ -187,12 +187,13 @@ function mvnormcdf(μ::AbstractVector{T1}, Σ::AbstractMatrix{T2}, a::AbstractVe
 end
 
 """
+    MvNormalCDF.qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}, m::Integer, rng) where T
 Re-coded in Julia from the MATLAB function qsimvnv(m,r,a,b)
 Alan Genz is the author the MATLAB qsimvnv() function.
 
-! Mutate a, b. Return new Σ
+! Mutate Σ, a, b.
 """
-function qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector, b::AbstractVector, m::Integer, rng) where T
+function qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}, m::Integer, rng) where T
     #T = promote_type(T1, T2)
     ##################################################################
     #
@@ -340,7 +341,7 @@ Permutated lower input vector:
 bp = [1, 2, 4]
 """
 #############
-function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector, b::AbstractVector) where T
+function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}) where T
     
     # define constants
     ep = 1e-10 # singularity tolerance

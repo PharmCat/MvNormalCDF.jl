@@ -86,7 +86,7 @@ m = 5000
 ```
 
 ```
-     mvnormcdf(Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
+     mvnormcdf(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
 ```
 
 Computes the Multivariate Normal probability integral with covariance matrix Σ, mean [0,...].
@@ -100,6 +100,14 @@ b = [2; 2]
 (p,e) = mvnormcdf(Σ, a-μ, b-μ)
 #(0.4306346895870772, 0.00015776288569406053)
 ```
+
+## Not exported
+
+```
+    MvNormalCDF.qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}, m::Integer, rng) where T
+```
+
+Re-coded in Julia from the MATLAB function qsimvnv(m,r,a,b); mutate Σ, a, b. Computes the Multivariate Normal probability integral with covariance matrix Σ, mean [0,...].
 
 # Reference
 - Genz, A. (1992). Numerical computation of multivariate normal probabilities. Journal of Computational and Graphical Statistics, 1, 141--150
