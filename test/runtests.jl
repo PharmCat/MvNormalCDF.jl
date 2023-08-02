@@ -1,7 +1,7 @@
 # MvNormalCDF
 # Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>, Andrew Gough
 using MvNormalCDF
-using Test, Distributions, StableRNGs
+using Test, Distributions, StableRNGs, ForwardDiff
 
 td = Array{Any}(undef,(14,9))
 #  1-cov mtx 2-a 3-b 4-m 5-p 6-ptol 7-e 8-etol
@@ -258,6 +258,26 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
 	@test_throws DimensionMismatch MvNormalCDF.mvnormcdf(MvNormal(r),a,b)
 
  end
+
+@testset "ForwardDiff test" begin
+  μ = [1., 2., 3.] 
+  Σ = [1 0.25 0.2; 0.25 1 0.333333333; 0.2 0.333333333 1]
+  ag = [-1; -4; -2]
+  bg = [1; 4; 2]
+  gf(x) = MvNormalCDF.mvnormcdf(x, Σ, ag, bg)[1]
+  @test_nowarn ForwardDiff.gradient(gf, [1, 2, 3])
+
+  μ = [1., 2., 3.] 
+  Σ = [1 0.25 0.2; 0.25 1 0.333333333; 0.2 0.333333333 1]
+  ag = [-1; -4; -2]
+  bg = [1; 4; 2]
+  gf2(x) = MvNormalCDF.mvnormcdf(μ, reshape(x, 3, 3), ag, bg)[1]
+  @test_nowarn ForwardDiff.gradient(gf2, [1, 0.25, 0.2, 0.25, 1, 0.333333333, 0.2, 0.333333333, 1])
+
+  f(x) = MvNormalCDF.mvnormcdf([0.;0.], reshape([0.1; 0.; 0.; 0.1], 2, 2), [x; -1.], [1.; 1.])[1]; 
+  ForwardDiff.derivative(f, -1.)
+end
+
 
 #=
 using BenchmarkTools

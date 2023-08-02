@@ -72,7 +72,7 @@ function mvnormcdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng 
 end
 
 """
-    mvnormcdf(μ::AbstractVector{<:Real}, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
+    mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
 
 Computes the Multivariate Normal probability integral using a quasi-Monte-Carlo
 algorithm with m points for positive definite covariance matrix Σ, mean [0,...], with lower
@@ -103,12 +103,12 @@ m = 5000
 Results will vary slightly from run-to-run due to the quasi-Monte-Carlo
 algorithm.
 """
-function mvnormcdf(Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
-    mvnormcdf(Zeros(size(Σ, 1)), Σ, a, b, m = m, rng = rng)
+function mvnormcdf(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
+    mvnormcdf(Zeros{promote_type(eltype(Σ), eltype(a), eltype(b), Float64)}(size(Σ, 1)), Σ, a, b, m = m, rng = rng)
 end
 
 """
-     mvnormcdf(Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
+     mvnormcdf(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
 
 Non-central MVN distributions (with non-zero mean) can use this function by adjusting
 the integration limits. Subtract the mean vector, μ, from each
@@ -123,7 +123,8 @@ b = [2; 2]
 #(0.4306346895870772, 0.00015776288569406053)
 ```
 """
-function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
+function mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice()) 
+    T = promote_type(eltype(μ), eltype(Σ), eltype(a), eltype(b), Float64)
     # check for proper dimensions
     n  = size(Σ, 1)
     nc = size(Σ, 2) 	# assume square Cov matrix nxn
@@ -133,26 +134,26 @@ function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b:
     # check dimensions of lower vector, upper vector, and cov matrix match
     (n == length(a) == length(b)) || throw(DimensionMismatch("iconsistent argument dimensions. Sizes: Σ $(size(Σ))  a $(size(a))  b $(size(b))"))
 
-    # check that lower integration limit a < upper integration limit b for all elements
-    all(a .<= b) || throw(ArgumentError("lower integration limit a must be <= upper integration limit b"))
+    # check that lower integration limit a <= upper integration limit b for all elements
+    all( x -> x[1] <= x[2], zip(a, b)) || throw(ArgumentError("lower integration limit a must be <= upper integration limit b"))
     # check that Σ is positive definate; if not, print warning
     # isposdef(Σ) || @warn "covariance matrix Σ fails positive definite check"
     # check if Σ, a, or b contains NaNs
-    if any(isnan.(Σ)) || any(isnan.(a)) || any(isnan.(b))
+    if any(isnan, Σ) || any(isnan, a) || any(isnan, b)
         p = NaN
         e = NaN
         return (p, e)
     end
     # check if a==b
     if a == b
-        p = 0.0
-        e = 0.0
+        p = zero(T)
+        e = zero(T)
         return (p, e)
     end
     # check if a = -Inf & b = +Inf
-    if all(a .== -Inf) && all(b .== Inf)
-        p = 1.0
-        e = 0.0
+    if all(x -> x == -Inf, a) && all(x -> x == Inf, b)
+        p = one(T)
+        e = zero(T)
         return (p, e)
     end
     ##################################################################
@@ -161,7 +162,7 @@ function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b:
     # 3-dimesional Σ have exact solutions. Integration range [0,∞]
     #
     ##################################################################
-    if all(a .== zero(eltype(a))) && all(b .== Inf) && n <= 3
+    if all(iszero, a) && all(x -> x == Inf, b) && n <= 3
         #Σstd = sqrt.(diag(Σ))
         Σstd  = Vector{Float64}(undef, n)
         @inbounds for i in 1:n
@@ -175,21 +176,25 @@ function mvnormcdf(μ, Σ::AbstractMatrix{<:Real}, a::AbstractVector{<:Real}, b:
             p = 1/8 + (asin(Rcorr[1, 2]) + asin(Rcorr[2, 3]) + asin(Rcorr[1, 3])) / (4π)
             e = eps()
         end
-        return (p,e)
+        return (p, e)
     end
     #
-    a = a .- μ
-    b = b .- μ
-    qsimvnv!(copy_oftype(Σ, Float64), a, b, m, rng)
+    at = copy_oftype(a, T)
+    bt = copy_oftype(b, T)
+    at .-= μ
+    bt .-= μ
+    qsimvnv!(copy_oftype(Σ, T), at, bt, m, rng)
 end
 
 """
+    MvNormalCDF.qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}, m::Integer, rng) where T
 Re-coded in Julia from the MATLAB function qsimvnv(m,r,a,b)
 Alan Genz is the author the MATLAB qsimvnv() function.
 
 ! Mutate Σ, a, b.
 """
-function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVector{<:Real}, m::Integer, rng)
+function qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}, m::Integer, rng) where T
+    #T = promote_type(T1, T2)
     ##################################################################
     #
     # get lower cholesky matrix and (potentially) re-ordered integration vectors
@@ -213,25 +218,25 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
         if ai < 9ct
             c1 = cdf(ZDIST, ai / ct)
         else
-            c1 = 1.0
+            c1 = one(T)
         end
     else
-        c1 = 0.0
+        c1 = zero(T)
     end
     # if bi is +infinity, explicity set d=0
     if bi > -9ct
         if bi < 9ct
             d1 = cdf(ZDIST, bi / ct)
         else
-            d1 = 1.0
+            d1 = one(T)
         end
     else
-        d1 = 0.0
+        d1 = zero(T)
     end
     n   = size(Σ, 1) 	# assume square Cov matrix nxn
     cxi = c1			# initial cxi; genz uses ci but it conflicts with Lin. Alg. ci variable
     dci = d1 - cxi		# initial dcxi
-    p   = 0.0			# probablity = 0
+    p   = zero(T)       # probablity = 0
     e   = 0.0			# error = 0
     # Richtmyer generators
     ps  = sqrt.(primes(Int(floor(5 * n * log(n + 1) / 4)))) # Richtmyer generators
@@ -242,18 +247,18 @@ function qsimvnv!(Σ::AbstractMatrix, a::AbstractVector{<:Real}, b::AbstractVect
     Jnv    = ones(1, nv)
     cfill  = fill(cxi, nv) 	            # evaulate at nv quasirandom points row vec
     dpfill = fill(dci, nv)
-    y      = zeros(nv, n - 1)			# n-1 (cols), nv (rows), preset to zero # change row-col for col-operation
+    y      = zeros(T, nv, n - 1)			# n-1 (cols), nv (rows), preset to zero # change row-col for col-operation
     #=
     Randomization loop for ns samples
     j is the number of samples to integrate over,
     but each with a vector nv in length
     i is the number of dimensions, or integrals to comptue
     =#
-    c  = zeros(length(cfill))
-    dc = zeros(length(dpfill))
-    pv = zeros(length(dpfill))
-    d  = zeros(length(Jnv))
-    tv = zeros(nv)
+    c  = zeros(T, length(cfill))
+    dc = zeros(T, length(dpfill))
+    pv = zeros(T, length(dpfill))
+    d  = zeros(T, length(Jnv))
+    tv = zeros(T, nv)
 
     for j in 1:ns					# loop for ns samples
         copyto!(c, cfill)
@@ -336,7 +341,8 @@ Permutated lower input vector:
 bp = [1, 2, 4]
 """
 #############
-function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}) where T <: Real
+function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector{T}) where T
+    
     # define constants
     ep = 1e-10 # singularity tolerance
     ϵ  = eps()
@@ -348,6 +354,7 @@ function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector
     am  = zero(T)
     bm  = zero(T)
     im  = zero(T)
+    #c   = copyto!(Matrix{T}(undef, n, n), Σ)
     c   = Σ
     ap  = a
     bp  = b
