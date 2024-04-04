@@ -259,6 +259,18 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
 
  end
 
+@testset "Special cases test" begin
+  mu    = [1, 1]
+  sigma = [1.0 0.5; 0.5 1.0]
+  a     = [0.0, 0.0]
+  b     = [Inf, Inf]
+
+  @test MvNormalCDF.mvnormcdf(mu, sigma, a, b; rng = StableRNG(1234))[1] ≈ 0.7450418725220342
+
+  @test MvNormalCDF.mvnormcdf([0,0], sigma, a, b)[1] ≈ 0.33333333333333337
+
+end
+
 @testset "ForwardDiff test" begin
   μ = [1., 2., 3.] 
   Σ = [1 0.25 0.2; 0.25 1 0.333333333; 0.2 0.333333333 1]
@@ -352,3 +364,18 @@ BenchmarkTools.Trial: 1525 samples with 1 evaluation.
  Memory estimate: 52.70 KiB, allocs estimate: 63.
 
 =#
+
+
+using MvNormalCDF
+using HCubature, Distributions
+
+gausspdf(x, mu, sigma) = exp(-0.5 * dot(x-mu, inv(sigma), x-mu)) / sqrt((2pi)^length(x) * det(sigma))
+
+mu = [1, 1]
+sigma = [1.0 0.5; 0.5 1.0]
+a = [0.0, 0.0]
+b = [Inf, Inf]
+
+# check 3: axis inversion not taken into account
+MvNormalCDF.mvnormcdf([0,0], [1.0 -0.5; -0.5 1.0], [0., -Inf], [Inf, 0]) |> println
+MvNormalCDF.mvnormcdf([0,0], [1.0 0.5; 0.5 1.0],   [-Inf, -Inf], [0., 0.0]) |> println

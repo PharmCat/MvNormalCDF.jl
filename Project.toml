@@ -3,7 +3,7 @@ uuid = "37188c8d-bc69-4638-b057-733e744175ec"
 keywords = ["cdf", "multivariate-normal", "distribution"]
 desc = "Numerical Computation of Multivariate Normal Probabilities."
 authors = ["PharmCat <v.s.arnautov@yandex.ru>", "Andrew Gough"]
-version = "0.3.0"
+version = "0.3.1"
 
 
 [deps]
