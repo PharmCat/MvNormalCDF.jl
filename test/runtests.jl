@@ -259,6 +259,18 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
 
  end
 
+@testset "Special cases test" begin
+  mu    = [1, 1]
+  sigma = [1.0 0.5; 0.5 1.0]
+  a     = [0.0, 0.0]
+  b     = [Inf, Inf]
+  # Isn't sp. case
+  @test MvNormalCDF.mvnormcdf(mu, sigma, a, b; rng = StableRNG(1234))[1] ≈ 0.7450418725220342
+  # Sp case
+  @test MvNormalCDF.mvnormcdf([0,0], sigma, a, b)[1] ≈ 0.33333333333333337
+
+end
+
 @testset "ForwardDiff test" begin
   μ = [1., 2., 3.] 
   Σ = [1 0.25 0.2; 0.25 1 0.333333333; 0.2 0.333333333 1]

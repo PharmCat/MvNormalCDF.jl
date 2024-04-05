@@ -156,13 +156,19 @@ function mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b:
         e = zero(T)
         return (p, e)
     end
+
+    at = copy_oftype(a, T)
+    bt = copy_oftype(b, T)
+    at .-= μ
+    bt .-= μ
+    println(at, " ", bt)
     ##################################################################
     #
     # Special cases: positive Orthant probabilities for 2- and
     # 3-dimesional Σ have exact solutions. Integration range [0,∞]
-    #
+    # Mean = [0...]
     ##################################################################
-    if all(iszero, a) && all(x -> x == Inf, b) && n <= 3
+    if all(iszero, at) && all(x -> x == Inf, bt) && n <= 3
         #Σstd = sqrt.(diag(Σ))
         Σstd  = Vector{Float64}(undef, n)
         @inbounds for i in 1:n
@@ -179,10 +185,6 @@ function mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b:
         return (p, e)
     end
     #
-    at = copy_oftype(a, T)
-    bt = copy_oftype(b, T)
-    at .-= μ
-    bt .-= μ
     qsimvnv!(copy_oftype(Σ, T), at, bt, m, rng)
 end
 
