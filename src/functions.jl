@@ -161,7 +161,6 @@ function mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b:
     bt = copy_oftype(b, T)
     at .-= μ
     bt .-= μ
-    println(at, " ", bt)
     ##################################################################
     #
     # Special cases: positive Orthant probabilities for 2- and
