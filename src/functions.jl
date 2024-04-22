@@ -238,7 +238,7 @@ function qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector
     cxi = c1			# initial cxi; genz uses ci but it conflicts with Lin. Alg. ci variable
     dci = d1 - cxi		# initial dcxi
     p   = zero(T)       # probablity = 0
-    e   = 0.0			# error = 0
+    e   = zero(T)		# error = 0
     # Richtmyer generators
     ps  = sqrt.(primes(Int(floor(5 * n * log(n + 1) / 4)))) # Richtmyer generators
     q   = ps[1:n - 1, 1]
@@ -284,12 +284,12 @@ function qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector
                 aicnt = asi - s[cnt]
                 bicnt = bsi - s[cnt]
                 if isless(aicnt, -9ct)
-                    c[cnt] = 0.0
+                    c[cnt] = zero(T)
                 elseif isless(abs(aicnt), 9ct)
                     c[cnt] = cdf(ZDIST, aicnt / ct)
                 end
                 if isless(bicnt, -9ct)
-                    d[cnt] = 0.0
+                    d[cnt] = zero(T)
                 elseif isless(abs(bicnt), 9ct)
                     d[cnt] = cdf(ZDIST, bicnt / ct)
                 end
@@ -365,10 +365,11 @@ function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector
     end
     @inbounds for i in 1:n
         if d[i] > 0
-            c[:, i] /= d[i]
-            c[i, :] /= d[i]
-            ap[i]   /= d[i]     # ap n x 1 vector
-            bp[i]   /= d[i]     # bp n x 1 vector
+            dᵢ      = d[i]
+            c[:, i] /= dᵢ
+            c[i, :] /= dᵢ
+            ap[i]   /= dᵢ    # ap n x 1 vector
+            bp[i]   /= dᵢ    # bp n x 1 vector
         end
     end
     y = zeros(T, n) # n x 1 zero vector to start
@@ -392,8 +393,8 @@ function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector
                     s = dot(view(c, i, 1:(k - 1)), view(y, 1:(k - 1)))
                     #s = dot(c[i, 1:(k-1)], y[1:(k-1)])
                 end
-                ai=(ap[i] - s) / cii
-                bi=(bp[i] - s) / cii
+                ai = (ap[i] - s) / cii
+                bi = (bp[i] - s) / cii
                 de = cdf(ZDIST, bi) - cdf(ZDIST, ai)
                 if de <= dem
                     ckk = cii
@@ -436,7 +437,7 @@ function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector
                 elseif bm > 10
                     y[k] = am
                 else
-                    y[k] = (am + bm)/2
+                    y[k] = (am + bm) / 2
                 end
             end # if abs
         else
