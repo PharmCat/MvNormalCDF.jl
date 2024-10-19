@@ -1,6 +1,23 @@
 # MvNormalCDF
 # Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>, Andrew Gough
 
+function primesfloat(lo::Int, hi::Int)
+    lo ≤ hi || throw(ArgumentError("The condition lo ≤ hi must be met."))
+    list = Float64[]
+    lo ≤ 2 ≤ hi && push!(list, 2)
+    lo ≤ 3 ≤ hi && push!(list, 3)
+    lo ≤ 5 ≤ hi && push!(list, 5)
+    hi < 7 && return list
+    lo = max(2, lo)
+    sizehint!(list, 5 + floor(Int, hi / (log(hi) - 1.12) - lo / (log(lo) - 1.12 * (lo > 7))) ) # http://projecteuclid.org/euclid.rmjm/1181070157
+    sieve = Primes._primesmask(max(7, lo), hi)
+    lwi = Primes.wheel_index(lo - 1)
+    @inbounds for i = 1:length(sieve)   # don't use eachindex here
+        sieve[i] && push!(list, Primes.wheel_prime(i + lwi))
+    end
+    return list
+end
+
 #=
 This function uses an algorithm given in the paper
 "Numerical Computation of Multivariate Normal Probabilities", in
@@ -240,8 +257,12 @@ function qsimvnv!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector
     p   = zero(T)       # probablity = 0
     e   = zero(T)		# error = 0
     # Richtmyer generators
-    ps  = sqrt.(primes(Int(floor(5 * n * log(n + 1) / 4)))) # Richtmyer generators
-    q   = ps[1:n - 1, 1]
+    # ps  = sqrt.(primes(Int(floor(5 * n * log(n + 1) / 4)))) # Richtmyer generators
+    # q   = ps[1:n - 1, 1]
+    q  = primesfloat(1, Int(floor(5 * n * log(n + 1) / 4))) # Richtmyer generators
+    @inbounds for i = 1:length(q)
+        q[i] = sqrt(q[i])
+    end
     ns  = 12
     nv  = Int(max(floor(m / ns), 1))
     ##

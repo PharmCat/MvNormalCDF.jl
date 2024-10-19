@@ -25,6 +25,7 @@ Alan Genz is the author the MATLAB qsimvnv() function.
 Alan Genz software website: http://archive.is/jdeRh
 Source code to MATLAB qsimvnv() function: http://archive.is/h5L37
 
+Quasi-random sequence made with Richtmyer generator.
 
 ![MVNCDFFORMULA](https://raw.githubusercontent.com/PharmCat/MvNormalCDF.jl/main/.github/images/mvnpi.png)
 
@@ -57,7 +58,7 @@ Probability p is output with error estimate e.
 - `a::AbstractVector`: lower integration limit column vector
 - `b::AbstractVector`: upper integration limit column vector
 - `m::Integer`:        number of integration points (default 1000*dimension)
-- `rng`: random number generator
+- `rng`: random number generator (for quasi-random Richtmyer sequence)
 
 
 ```
