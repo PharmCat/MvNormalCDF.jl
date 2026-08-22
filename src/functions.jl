@@ -62,11 +62,11 @@ Source code to MATLAB qsimvnv() function: http://archive.is/h5L37
 %
 =#
 
-copy_oftype(A::AbstractArray{T}, ::Type{T}) where {T} = copy(A)
-copy_oftype(A::AbstractArray{T,N}, ::Type{S}) where {T,N,S} = convert(AbstractArray{S,N}, A)
+copy_oftype(A::AbstractArray{T,N}, ::Type{S}) where {T,N,S} = copyto!(Array{S,N}(undef, size(A)), A)
+#copy_oftype(A::AbstractArray{T,N}, ::Type{S}) where {T,N,S} = convert(AbstractArray{S,N}, A)
 
 """
-    mvnormcdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
+    mvnormcdf(d::AbstractMvNormal, a, b; m::Integer = 1000*length(d), rng = Random.default_rng())
 
 Computes the Multivariate Normal probability integral using a quasi-Monte-Carlo
 algorithm with m points for multivariate normal distributions ([MvNormal](https://juliastats.org/Distributions.jl/stable/multivariate/#Distributions.MvNormal))
@@ -84,44 +84,8 @@ Probability p is output with error estimate e.
 - Genz, A. (1992). Numerical computation of multivariate normal probabilities. Journal of Computational and Graphical Statistics, 1, 141--150
 - Genz, A. (1993). Comparison of methods for the computation of multivariate normal probabilities. Computing Science and Statistics, 25, 400--405
 """
-function mvnormcdf(dist::MvNormal, a, b; m::Integer = 1000*size(dist.Σ,1), rng = RandomDevice())
-    mvnormcdf(dist.μ, dist.Σ, a, b, m = m, rng = rng)
-end
-
-"""
-    mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
-
-Computes the Multivariate Normal probability integral using a quasi-Monte-Carlo
-algorithm with m points for positive definite covariance matrix Σ, mean [0,...], with lower
-integration limit vector a and upper integration limit vector b.
-```math
-\\Phi_k(\\mathbf{a},\\mathbf{b},\\mathbf{\\Sigma} ) = \\frac{1}{\\sqrt{\\left | \\mathbf{\\Sigma}  \\right |{(2\\pi )^k}}}\\int_{a_1}^{b_1}\\int_{a_2}^{b_2}\\begin{align*}
- &...\\end{align*} \\int_{a_k}^{b_k}e^{^{-\\frac{1}{2}}\\mathbf{x}^t{\\mathbf{\\Sigma }}^{-1}\\boldsymbol{\\mathbf{x}}}dx_k...dx_1
-```
-Probability p is output with error estimate e.
-# Arguments
-- `μ::AbstractVector`: vector of means
-- `Σ::AbstractMatrix`: positive-definite covariance matrix of MVN distribution
-- `a::AbstractVector`: lower integration limit column vector
-- `b::AbstractVector`: upper integration limit column vector
-- `m::Integer`:        number of integration points (default 1000*dimension)
-- `rng`: random number generator
-
-# Example
-```julia
-Σ = [4 3 2 1; 3 5 -1 1; 2 -1 4 2; 1 1 2 5]
-μ = zeros(4)
-a = [-Inf; -Inf; -Inf; -Inf]
-b = [1; 2; 3; 4]
-m = 5000
-(p,e) = mvnormcdf(μ, Σ, a, b; m=m)
-#(0.605219554009911, 0.0015718064928452481)
-```
-Results will vary slightly from run-to-run due to the quasi-Monte-Carlo
-algorithm.
-"""
-function mvnormcdf(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice())
-    mvnormcdf(Zeros{promote_type(eltype(Σ), eltype(a), eltype(b), Float64)}(size(Σ, 1)), Σ, a, b, m = m, rng = rng)
+function mvnormcdf(d::AbstractMvNormal, a, b; kwargs...)
+    mvnormcdf(mean(d), Matrix(cov(d)), a, b; kwargs...)
 end
 
 """
@@ -140,27 +104,85 @@ b = [2; 2]
 #(0.4306346895870772, 0.00015776288569406053)
 ```
 """
-function mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = RandomDevice()) 
+function mvnormcdf(Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; kwargs...)
+    mvnormcdf(Zeros{promote_type(eltype(Σ), eltype(a), eltype(b), Float64)}(size(Σ, 1)), Σ, a, b; kwargs...)
+end
+
+"""
+    mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = Random.default_rng(), checksymmetric = false) 
+
+Computes the Multivariate Normal probability integral using a quasi-Monte-Carlo
+algorithm with m points for positive definite covariance matrix Σ, mean [0,...], with lower
+integration limit vector a and upper integration limit vector b.
+
+!!! warning "Σ"
+    For a plain `AbstractMatrix` only the lower triangle of `Σ` is used;
+    the upper triangle is ignored, so a non-symmetric matrix is silently
+    treated as symmetric. For `Symmetric`/`Hermitian` the wrapper's own
+    `uplo` applies — note that `Symmetric(A)` defaults to `:U`, which is
+    the opposite convention, and `Symmetric(A, :L)` reproduces the plain-
+    matrix behaviour.
+
+```math
+\\Phi_k(\\mathbf{a},\\mathbf{b},\\mathbf{\\Sigma} ) = \\frac{1}{\\sqrt{\\left | \\mathbf{\\Sigma}  \\right |{(2\\pi )^k}}}\\int_{a_1}^{b_1}\\int_{a_2}^{b_2}\\begin{align*}
+ &...\\end{align*} \\int_{a_k}^{b_k}e^{^{-\\frac{1}{2}}\\mathbf{x}^t{\\mathbf{\\Sigma }}^{-1}\\boldsymbol{\\mathbf{x}}}dx_k...dx_1
+```
+Probability p is output with error estimate e.
+
+# Arguments
+- `μ::AbstractVector`: vector of means
+- `Σ::AbstractMatrix`: positive-definite covariance matrix of MVN distribution
+- `a::AbstractVector`: lower integration limit column vector
+- `b::AbstractVector`: upper integration limit column vector
+- `m::Integer`:        number of integration points (default 1000*dimension)
+- `rng`: random number generator
+- `checksymmetric`: check matrix is symmetric
+
+# Example
+```julia
+Σ = [4 3 2 1; 3 5 -1 1; 2 -1 4 2; 1 1 2 5]
+μ = zeros(4)
+a = [-Inf; -Inf; -Inf; -Inf]
+b = [1; 2; 3; 4]
+m = 5000
+(p,e) = mvnormcdf(μ, Σ, a, b; m=m)
+#(0.605219554009911, 0.0015718064928452481)
+```
+Results will vary slightly from run-to-run due to the quasi-Monte-Carlo algorithm.
+
+!!! warning "Error estimate"
+    `e` is 3 standard errors over 12 randomizations, not an error bound.
+    `e == 0` means all 12 samples agreed: either the result is exact
+    (independent components or a closed-form shortcut), or `Σ` is singular,
+    or the probability underflowed and `p` was clamped to exactly `0.0`/`1.0`.
+    In the last two cases `p` needs to be checked independently.
+"""
+function mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b::AbstractVector; m::Integer = 1000*size(Σ,1), rng = Random.default_rng(), checksymmetric = false) 
     T = promote_type(eltype(μ), eltype(Σ), eltype(a), eltype(b), Float64)
     # check for proper dimensions
     n  = size(Σ, 1)
     nc = size(Σ, 2) 	# assume square Cov matrix nxn
+    if checksymmetric
+        issymmetric(Σ) || throw(ErrorException("Σ matrix is not symmetric."))
+    end
+    # check m
+    m >= 1   || throw(ErrorException("m must be 1 or greater."))
     # check dimension > 1
     n >= 2   || throw(ErrorException("dimension of Σ must be 2 or greater. Σ dimension: $(size(Σ))"))
     n == nc  || throw(DimensionMismatch("Σ matrix must be square. Σ dimension: $(size(Σ))"))
     # check dimensions of lower vector, upper vector, and cov matrix match
     (n == length(a) == length(b)) || throw(DimensionMismatch("iconsistent argument dimensions. Sizes: Σ $(size(Σ))  a $(size(a))  b $(size(b))"))
-
-    # check that lower integration limit a <= upper integration limit b for all elements
-    all( x -> x[1] <= x[2], zip(a, b)) || throw(ArgumentError("lower integration limit a must be <= upper integration limit b"))
-    # check that Σ is positive definate; if not, print warning
-    # isposdef(Σ) || @warn "covariance matrix Σ fails positive definite check"
     # check if Σ, a, or b contains NaNs
     if any(isnan, Σ) || any(isnan, a) || any(isnan, b)
         p = NaN
         e = NaN
         return (p, e)
     end
+    # check that lower integration limit a <= upper integration limit b for all elements
+    all( x -> x[1] <= x[2], zip(a, b)) || throw(ArgumentError("lower integration limit a must be <= upper integration limit b"))
+    # check that Σ is positive definate; if not, print warning
+    # isposdef(Σ) || @warn "covariance matrix Σ fails positive definite check"
+
     # check if a==b
     if a == b
         p = zero(T)
@@ -186,7 +208,7 @@ function mvnormcdf(μ::AbstractVector, Σ::AbstractMatrix, a::AbstractVector, b:
     ##################################################################
     if all(iszero, at) && all(x -> x == Inf, bt) && n <= 3
         #Σstd = sqrt.(diag(Σ))
-        Σstd  = Vector{Float64}(undef, n)
+        Σstd  = Vector{T}(undef, n)
         @inbounds for i in 1:n
             Σstd[i] = sqrt(Σ[i, i])
         end
@@ -382,7 +404,7 @@ function _chlrdr!(Σ::AbstractMatrix{T}, a::AbstractVector{T}, b::AbstractVector
     bp  = b
     d   = Vector{T}(undef, n)
     @inbounds for i in 1:n
-        d[i] = sqrt(c[i, i])
+        d[i] = sqrt(max(c[i, i], 0))
     end
     @inbounds for i in 1:n
         if d[i] > 0

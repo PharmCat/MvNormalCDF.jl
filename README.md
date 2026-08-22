@@ -51,7 +51,28 @@ There is no covariance matrix Σ positive definite check.
 
 Probability p is output with error estimate e.
 
-> :warning: **Check estimate e after integration.**: Be very careful here! If `e == 0` - results could be unstable or could be wrong (one of the reasons can be an ill-conditioned Σ matrix).
+> ⚠️ **Always check the error estimate `e`.**
+>
+> `e` is a stochastic estimate — three standard errors over the 12 randomizations
+> of the quasi-random sequence. It measures the spread between those 12 samples
+> and is not a bound on the total error.
+>
+> `e == 0` means all 12 samples agreed exactly. This happens in three very
+> different situations:
+>
+> * **the result is exact** — the variables are independent after reordering
+>   (diagonal or block-diagonal `Σ`), or a closed-form shortcut was taken
+>   (`a == b`, `a == -Inf` with `b == +Inf`, or the 2-/3-dimensional positive
+>   orthant);
+> * **`Σ` is singular or ill-conditioned** — the integral collapsed to a lower
+>   dimension. `p` is usually still correct, but that is not guaranteed;
+> * **underflow / saturation** — the probability is so small (or so close to 1)
+>   that every integration point returned the same value. `p` is then reported
+>   as exactly `0.0` or `1.0` while the true value is not.
+>
+> So `e == 0` is not an error signal by itself — it means `e` carries no
+> information, and `p` has to be judged some other way: check `rank(Σ)` and
+> `cond(Σ)`, and check whether `p` sits at exactly `0.0` or `1.0`.
 
 ## Arguments
 - `dist::MvNormal`: multivariate normal distributions from Distributions.jl
