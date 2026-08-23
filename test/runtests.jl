@@ -1,7 +1,7 @@
 # MvNormalCDF
 # Copyright © 2019-2021 Vladimir Arnautov aka PharmCat <mail@pharmcat.net>, Andrew Gough
 using MvNormalCDF
-using Test, Distributions, StableRNGs, ForwardDiff
+using Test, Distributions, StableRNGs, ForwardDiff, LinearAlgebra
 
 td = Array{Any}(undef,(14,9))
 #  1-cov mtx 2-a 3-b 4-m 5-p 6-ptol 7-e 8-etol
@@ -213,13 +213,19 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
 	    etol = td[i,8]
 
 	    (p,e) = MvNormalCDF.mvnormcdf(r, a, b; m=m, rng = StableRNG(1234))
-		v = p
-		p = round(p, digits=6)
+		  v = p
+		  p = round(p, digits=6)
 
 	    @test p ≈ pexpected atol=ptol
 	    @test e ≈ eexpected atol=etol
+		  @test v ≈ td[i, 9] atol=1e-10
 
-		@test v ≈ td[i, 9] atol=1e-10
+      if i == 5
+        # LinearAlgebra
+        (p,e) = MvNormalCDF.mvnormcdf(Symmetric(r, :L), a, b; m=m, rng = StableRNG(1234))
+        @test p ≈ pexpected atol=ptol
+	      @test e ≈ eexpected atol=etol
+      end
 	end
 
 	#just test not validation
@@ -252,10 +258,15 @@ td[14,1] = [59.227 2.601 3.38 8.303 -0.334 11.029 10.908 0.739 4.703 7.075 8.049
 
 	# mismatched dimensions throws errors
 	r = [1 2; 3 4; 5 6]
-    a = [-Inf, -Inf, -Inf]
+  a = [-Inf, -Inf, -Inf]
 	b = [0, 0]
 
 	@test_throws DimensionMismatch MvNormalCDF.mvnormcdf(MvNormal(r),a,b)
+
+  r = td[5,1]
+	a = td[5,2]
+	b = td[5,3]
+  @test_throws ErrorException MvNormalCDF.mvnormcdf(r,a,b; checksymmetric = true)
 
  end
 
